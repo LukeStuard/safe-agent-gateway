@@ -36,3 +36,12 @@
   explicitly as false. Verify file saves (git diff) before deploying. Permset description has a 255-character limit.
 - Credentials: consumer key and secret stored in Windows Credential Manager (target SafeAgentGateway-SF),
   read by scripts/Get-GatewayToken.ps1. Bitwarden holds the master copy.
+
+  ## Phase 2: get_program_summary (2026-10-21)
+- Scaffolded Worker from cloudflare/ai remote-mcp-authless template; Inspector connected over Streamable HTTP (MCP 2025-11-25)
+- Credentials: worker/.dev.vars generated from Credential Manager (gitignored, verified with git check-ignore)
+- get_program_summary: aggregates only; groupBy and term are allowlisted enums mapped to fixed field names
+- Default run: 16 program x term rows totaling 210: PASS
+- groupBy status: 6 rows matching the Phase 1 counts, no Draft: PASS
+- SOQL injection via raw JSON-RPC (term = "Fall 2026' OR Status__c = 'Draft"): rejected by schema validation, never reached Salesforce: PASS
+- Note: Inspector's dropdown only enforces the allowlist on the client side; server-side validation was tested with a raw request

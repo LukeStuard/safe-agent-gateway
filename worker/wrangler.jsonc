@@ -11,6 +11,10 @@
 	"name": "worker",
 	"main": "src/index.ts",
 	"compatibility_date": "2026-07-02",
+	"vars": {
+	"SF_LOGIN_URL": "https://orgfarm-5ea30c60fa-dev-ed.develop.my.salesforce.com",
+	"SF_API_VERSION": "v68.0"
+},
 	"compatibility_flags": [
 		"nodejs_compat"
 	],
