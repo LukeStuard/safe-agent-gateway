@@ -56,3 +56,19 @@
 - Raw status=Draft: rejected (not a pending status): PASS
 - Raw fields=[Birthdate, Student_ID__c]: rejected (unrecognized key): PASS
 - Added scripts/Invoke-Mcp.ps1 for raw JSON-RPC tests that bypass client-side validation
+
+## Phase 2: get_application_status (2026-10-21)
+- Lookup by application number only; input must match ^APP-\d{5}$
+- Returns the 5 standard fields plus review notes, wrapped as untrusted data (labeled, capped at 2,000 chars)
+- Not found and not visible return the same response, so the tool can't be used to discover hidden records
+- APP-00065: found, notes returned inside reviewNotes with untrusted: true: PASS
+- APP-00010 (Draft, exists in Salesforce): found: false: PASS
+- APP-99999 (doesn't exist): found: false, same response as the Draft lookup: PASS
+- Raw applicationId with SOQL injection: rejected by regex: PASS
+- Raw includeFields=Birthdate: rejected (unrecognized key): PASS
+- Prompt-injection fixture planted on APP-00065 Review_Notes__c for the Phase 4 agent test
+- All three tools now use .strict() input schemas
+
+## Phase 2 status: COMPLETE
+Read tools: get_program_summary, list_pending_reviews, get_application_status
+Controls verified: allowlisted inputs, row cap, output field allowlist, strict schemas, fail-closed errors, sharing enforced at the source
