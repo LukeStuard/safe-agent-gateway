@@ -24,3 +24,15 @@
 
 ### Next
 - Generate Application object metadata (status, term, program, review notes) and fake sensitive fields on Contact (DOB, student ID) for redaction testing
+
+
+## Phase 1 verification (2026-10-21)
+- Client credentials token as Gateway Integration user: PASS
+- Application__c visible to integration user: 210 records, no Draft (sharing rule works): PASS
+- Contact query as integration user: initially FAIL (returned a record). The local permset still had
+  Contact allowRead=true; the earlier edit was never saved. Fixed by setting allowRead=false explicitly.
+  Retest returned 400 INVALID_TYPE: PASS
+- Lessons: permset deploys don't revoke permissions omitted from the XML, so revocations must be stated
+  explicitly as false. Verify file saves (git diff) before deploying. Permset description has a 255-character limit.
+- Credentials: consumer key and secret stored in Windows Credential Manager (target SafeAgentGateway-SF),
+  read by scripts/Get-GatewayToken.ps1. Bitwarden holds the master copy.
