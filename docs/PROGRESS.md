@@ -45,3 +45,14 @@
 - groupBy status: 6 rows matching the Phase 1 counts, no Draft: PASS
 - SOQL injection via raw JSON-RPC (term = "Fall 2026' OR Status__c = 'Draft"): rejected by schema validation, never reached Salesforce: PASS
 - Note: Inspector's dropdown only enforces the allowlist on the client side; server-side validation was tested with a raw request
+
+## Phase 2: list_pending_reviews (2026-10-21)
+- Returns Submitted / In Review applications, oldest first; 5 fields via fixed output map (server-side redaction)
+- Row cap 25, default 10; queries limit+1 to report truncated without returning extra rows
+- Input schemas are .strict(), so unknown arguments are rejected rather than silently ignored
+- Default run: 10 rows, truncated true, mixed statuses and programs, 5 fields each: PASS
+- Status + program filters: PASS
+- Raw limit=1000: rejected (max 25): PASS
+- Raw status=Draft: rejected (not a pending status): PASS
+- Raw fields=[Birthdate, Student_ID__c]: rejected (unrecognized key): PASS
+- Added scripts/Invoke-Mcp.ps1 for raw JSON-RPC tests that bypass client-side validation
