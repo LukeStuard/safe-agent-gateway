@@ -2,6 +2,7 @@ import { McpServer } from "@modelcontextprotocol/server";
 import { createMcpHandler } from "agents/mcp/server";
 import { z } from "zod";
 import { soqlQuery, type SfEnv } from "./salesforce";
+import { withAudit } from "./audit";
 
 // Allowlists. Agent input is validated against these and never spliced into SOQL as free text.
 const TERMS = ["Fall 2026", "Spring 2027", "Summer 2027", "Fall 2027"] as const;
@@ -171,8 +172,9 @@ function createServer(env: SfEnv) {
 	return server;
 }
 
+const mcp = (request: Request, env: Env, ctx: ExecutionContext) =>
+	createMcpHandler(() => createServer(env))(request, env, ctx);
+
 export default {
-	fetch(request: Request, env: Env, ctx: ExecutionContext) {
-		return createMcpHandler(() => createServer(env))(request, env, ctx);
-	},
+	fetch: withAudit(mcp),
 } satisfies ExportedHandler<Env>;

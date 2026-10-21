@@ -72,3 +72,14 @@
 ## Phase 2 status: COMPLETE
 Read tools: get_program_summary, list_pending_reviews, get_application_status
 Controls verified: allowlisted inputs, row cap, output field allowlist, strict schemas, fail-closed errors, sharing enforced at the source
+
+## Phase 3: audit log (2026-10-21)
+- D1 database gateway-audit (binding AUDIT_DB); migration 0001 creates audit_log (metadata only)
+- Audit wraps the /mcp endpoint, so it logs calls the SDK rejects before tool code runs
+- Logged: allowed call (get_program_summary, summary "groups=6", no record data): PASS
+- Logged: validation deny (limit=1000): PASS
+- Test #5, unknown tool (delete_all_records): denied with JSON-RPC -32602 and logged: PASS
+- JSON-RPC batch: rejected with 400 / -32600 before reaching tools: PASS
+- Fail closed: audit table renamed, so the tool call was blocked with "Audit log unavailable": PASS 
+- Note: the Wrangler "Assertion failed ... async.c" message on Windows shutdown is harmless
+- Next: OAuth in front of the server (replaces identity "anonymous-local"), rate limiting, add_review_note with approval

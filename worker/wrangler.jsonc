@@ -12,16 +12,23 @@
 	"main": "src/index.ts",
 	"compatibility_date": "2026-07-02",
 	"vars": {
-	"SF_LOGIN_URL": "https://orgfarm-5ea30c60fa-dev-ed.develop.my.salesforce.com",
-	"SF_API_VERSION": "v68.0"
-},
+		"SF_LOGIN_URL": "https://orgfarm-5ea30c60fa-dev-ed.develop.my.salesforce.com",
+		"SF_API_VERSION": "v68.0"
+	},
 	"compatibility_flags": [
 		"nodejs_compat"
 	],
 	"observability": {
 		"enabled": true
 	},
-	"upload_source_maps": true
+	"upload_source_maps": true,
+	"d1_databases": [
+		{
+			"binding": "AUDIT_DB",
+			"database_name": "gateway-audit",
+			"database_id": "0207c16a-ad88-4685-bcc1-24bb936b22ff"
+		}
+	]
 	/**
 	 * Smart Placement
 	 * https://developers.cloudflare.com/workers/configuration/smart-placement/#smart-placement
