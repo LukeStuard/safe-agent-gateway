@@ -46,3 +46,7 @@ $RECYCLE.BIN/
 **/__pycache__/
 **/.venv/
 **/venv/
+
+# Bulk API job result files
+*-success-records.csv
+*-failed-records.csv
