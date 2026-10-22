@@ -96,7 +96,17 @@ Controls verified: allowlisted inputs, row cap, output field allowlist, strict s
 - Next: swap hand-rolled consent/state code for the library's built-in helpers; garbage/expired token test;
   Invoke-Mcp.ps1 token support; rate limiting; add_review_note with approval
 
-  ## Phase 3: consent refactor (2026-10-21)
+## Phase 3: audit log (2026-10-21)
+- D1 database gateway-audit (binding AUDIT_DB); migration 0001 creates audit_log (metadata only)
+- Audit wraps the /mcp endpoint, so it logs calls the SDK rejects before tool code runs
+- Logged: allowed call (get_program_summary, summary "groups=6", no record data): PASS
+- Logged: validation deny (limit=1000): PASS
+- Test #5, unknown tool (delete_all_records): denied with JSON-RPC -32602 and logged: PASS
+- JSON-RPC batch: rejected with 400 / -32600 before reaching tools: PASS
+- Fail closed: audit table renamed, so the tool call was blocked with "Audit log unavailable": PASS
+- Note: the Wrangler "Assertion failed ... async.c" message on Windows shutdown is harmless
+
+## Phase 3: consent refactor (2026-10-21)
 - Replaced hand-rolled consent, state, and cookie code with workers-oauth-provider 1.x helpers
   (describeConsent, beginConsent, approveConsent, denyConsent, isConsentRemembered, beginUpstream, finishUpstream)
 - Gains: __Host- cookies, flow state encrypted in KV under a hashed key (the PKCE verifier was previously
@@ -111,3 +121,11 @@ Controls verified: allowlisted inputs, row cap, output field allowlist, strict s
   resending the captured POST from DevTools on the gateway's own origin
 - Lesson: check the installed library version's docs before writing code against it; the first
   implementation was written from 0.x memory and hand-rolled what 1.x already provides
+  - Garbage bearer token on /mcp: 401 invalid_token, never reaches tool code: PASS
+- Known gap: requests rejected by OAuthProvider (no token, bad token) never reach the audit
+  wrapper, so they are refused but not logged. Test plan #1 requires both
+- Environment: login app creds in Credential Manager (target SafeAgentGateway-Login); .dev.vars adds
+  SF_LOGIN_CLIENT_ID, SF_LOGIN_CLIENT_SECRET, SF_ORG_ID, COOKIE_ENCRYPTION_KEY; wrangler vars add
+  GATEWAY_ORIGIN; KV namespace OAUTH_KV
+- Next: log OAuth rejections (test #1); Invoke-Mcp.ps1 token support; wrong-resource token test;
+  rate limiting; add_review_note with approval
