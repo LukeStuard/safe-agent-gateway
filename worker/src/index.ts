@@ -3,6 +3,8 @@ import { createMcpHandler } from "agents/mcp/server";
 import { z } from "zod";
 import { soqlQuery, type SfEnv } from "./salesforce";
 import { withAudit } from "./audit";
+import { OAuthProvider } from "@cloudflare/workers-oauth-provider";
+import { handleAuth, GATEWAY_SCOPES, type AuthEnv } from "./auth-handler";
 
 // Allowlists. Agent input is validated against these and never spliced into SOQL as free text.
 const TERMS = ["Fall 2026", "Spring 2027", "Summer 2027", "Fall 2027"] as const;
@@ -175,6 +177,30 @@ function createServer(env: SfEnv) {
 const mcp = (request: Request, env: Env, ctx: ExecutionContext) =>
 	createMcpHandler(() => createServer(env))(request, env, ctx);
 
+/// Built on the first request because the canonical URLs come from env (localhost in dev,
+// the workers.dev URL once deployed). OAuthProvider validates the bearer token on /mcp before
+// anything else runs, then hands the identity to the audit layer as ctx.props.
+let provider: OAuthProvider<Env> | undefined;
+
+function getProvider(env: Env): OAuthProvider<Env> {
+	return (provider ??= new OAuthProvider<Env>({
+		apiRoute: "/mcp",
+		apiHandler: { fetch: withAudit(mcp) },
+		defaultHandler: { fetch: (request, env, ctx) => handleAuth(request, env as AuthEnv, ctx) },
+		authorizeEndpoint: "/authorize",
+		tokenEndpoint: "/token",
+		clientRegistrationEndpoint: "/register",
+		scopesSupported: GATEWAY_SCOPES,
+		resourceMetadata: {
+			resource: `${env.GATEWAY_ORIGIN}/mcp`,
+			authorization_servers: [env.GATEWAY_ORIGIN],
+			scopes_supported: GATEWAY_SCOPES,
+			bearer_methods_supported: ["header"],
+			resource_name: "Safe Agent Gateway",
+		},
+	}));
+}
+
 export default {
-	fetch: withAudit(mcp),
+	fetch: (request, env, ctx) => getProvider(env).fetch(request, env, ctx),
 } satisfies ExportedHandler<Env>;

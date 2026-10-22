@@ -2,15 +2,13 @@
 // Wraps the /mcp endpoint so every tools/call is logged, including calls the SDK rejects
 // during input validation (those never reach tool code). Fails closed: if the audit
 // write fails, the caller gets an error instead of the result.
-
+import type { GatewayProps } from "./auth-handler";
 export interface AuditEnv {
 	AUDIT_DB: D1Database;
 }
 
 type Handler<E> = (request: Request, env: E, ctx: ExecutionContext) => Promise<Response>;
 type Decision = "allow" | "deny" | "error";
-
-const IDENTITY = "anonymous-local"; // replaced by the OAuth identity later in Phase 3
 const MAX_ARGS_CHARS = 1000;
 const SALESFORCE_FAILURE = "The Salesforce request failed";
 
@@ -82,6 +80,8 @@ export function withAudit<E extends AuditEnv>(handle: Handler<E>): Handler<E> {
 		if (request.method !== "POST" || url.pathname !== "/mcp") return handle(request, env, ctx);
 
 		const started = Date.now();
+        // OAuthProvider only reaches this handler with a valid token, so props are always present here.
+		const identity = (ctx as ExecutionContext & { props?: GatewayProps }).props?.username ?? "unknown";
 		const call = parseToolCall(await request.clone().text());
 
 		// Batches could hide tool calls from the audit layer, so refuse them outright.
@@ -100,7 +100,7 @@ export function withAudit<E extends AuditEnv>(handle: Handler<E>): Handler<E> {
 			)
 				.bind(
 					crypto.randomUUID(),
-					IDENTITY,
+					identity,
 					call.tool,
 					JSON.stringify(call.args).slice(0, MAX_ARGS_CHARS),
 					decision,

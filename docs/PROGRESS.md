@@ -73,13 +73,25 @@
 Read tools: get_program_summary, list_pending_reviews, get_application_status
 Controls verified: allowlisted inputs, row cap, output field allowlist, strict schemas, fail-closed errors, sharing enforced at the source
 
-## Phase 3: audit log (2026-10-21)
-- D1 database gateway-audit (binding AUDIT_DB); migration 0001 creates audit_log (metadata only)
-- Audit wraps the /mcp endpoint, so it logs calls the SDK rejects before tool code runs
-- Logged: allowed call (get_program_summary, summary "groups=6", no record data): PASS
-- Logged: validation deny (limit=1000): PASS
-- Test #5, unknown tool (delete_all_records): denied with JSON-RPC -32602 and logged: PASS
-- JSON-RPC batch: rejected with 400 / -32600 before reaching tools: PASS
-- Fail closed: audit table renamed, so the tool call was blocked with "Audit log unavailable": PASS 
-- Note: the Wrangler "Assertion failed ... async.c" message on Windows shutdown is harmless
-- Next: OAuth in front of the server (replaces identity "anonymous-local"), rate limiting, add_review_note with approval
+## Phase 3: OAuth (2026-10-21)
+- Worker is now an OAuth 2.1 authorization server for MCP clients (@cloudflare/workers-oauth-provider 1.x);
+  Salesforce is the upstream identity provider via a second External Client App ("Safe Agent Gateway Login")
+- Login app: authorization code + PKCE + client secret, scopes openid and id only (no api, no refresh_token),
+  so its tokens can't read data. Separate from the client credentials app: one app per trust boundary
+- Gate 1 (Salesforce): Permitted Users = admin approved; Gateway_Agent_Access permission set required
+- Gate 2 (gateway): per-client consent page before redirecting to Salesforce, because dynamic registration
+  lets any client register and Salesforce pre-authorization would otherwise skip consent
+- Callback checks organization_id against SF_ORG_ID; the Salesforce token is used once for /userinfo, then revoked
+- Audit identity now comes from the OAuth grant (ctx.props), replacing "anonymous-local"
+- Protected resource metadata: http://localhost:8788/mcp, scope gateway:read; dev port pinned to 8788
+- Discovery metadata (RFC 9728 and RFC 8414): PASS
+- Unauthenticated POST /mcp: 401 with resource_metadata challenge: PASS
+- User without Gateway_Agent_Access: denied at Salesforce (OAUTH_APP_ACCESS_DENIED), no token issued: PASS
+- Approved user: consent, Salesforce login, connected, get_program_summary returned 210: PASS
+- Audit row identity = Salesforce username: PASS
+- Cloudflare: Wrangler had been logged into the CIAM account; an empty gateway-audit D1 was created
+  there and deleted. Project resources now live in a personal Cloudflare account, accessed with a scoped
+  API token (Credential Manager target SafeAgentGateway-CF, loaded by scripts/Use-GatewayCloudflare.ps1)
+- Lesson: re-run the tool after reconnecting before reading the audit log
+- Next: swap hand-rolled consent/state code for the library's built-in helpers; garbage/expired token test;
+  Invoke-Mcp.ps1 token support; rate limiting; add_review_note with approval
