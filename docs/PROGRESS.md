@@ -188,3 +188,23 @@ Controls verified: allowlisted inputs, row cap, output field allowlist, strict s
   different-audience token can't be minted without adding a route just for the test
 - Lesson: Set-GatewayToken read a pasted command block from the clipboard; it now rejects anything
   that isn't token-shaped
+
+  ## Phase 3: rate limiting (2026-10-22)
+- Workers Rate Limiting binding (ratelimits in wrangler.jsonc), two limiters with separate namespaces:
+  - TOOL_RATE_LIMITER (1001): 10 tools/call per 60s per Salesforce user ID, inside withAudit. Counts invalid
+    and unknown-tool calls too. Refusal: HTTP 429, Retry-After 60, JSON-RPC -32000, audited as deny
+  - IP_RATE_LIMITER (1002): 60 requests per 60s per IP on /mcp, /token, /register, /authorize, /callback,
+    outermost wrapper (withIpLimit in ratelimit.ts). Refusal: 429, Retry-After 60, deliberately not audited
+- Order: IP limit > token check + rejection audit > per-user limit + audit > tools
+- audit.ts: insert factored into writeAudit (three call sites)
+- Test #7, per-user: 25 sequential calls; 10 allowed in the 11:16 window, then 429 for the rest: PASS
+- Finding: limits use fixed windows aligned to the clock minute (first run allowed 11 around the 11:16:00
+  boundary). A burst straddling a boundary can reach 2x the limit. Acceptable for an abuse control;
+  a strict limit would need a Durable Object (Cloudflare docs)
+- IP limit: 70 parallel unauthenticated requests in one window: 60 x 401, 10 x 429: PASS
+- Audit: exactly 60 rows for that burst; IP-limited requests never reached D1: PASS
+- Caught by test: the first IP run returned 70 x 401 because withIpLimit was never wired into index.ts
+  (tsc passes either way). Lesson: verify wiring with a behavior test, not just a typecheck
+- Note: each local request takes about 2s, including 429s that never touch Salesforce; suspect localhost
+  IPv6 fallback on Windows. Sequential tests can't reach the IP limit, so the IP test runs in parallel
+- Test plan: 5 of 9 passed (#1, #2, #3, #5, #7)
