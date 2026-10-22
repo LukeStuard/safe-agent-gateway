@@ -8,7 +8,9 @@ type Handler<E> = (request: Request, env: E, ctx: ExecutionContext) => Promise<R
 const LIMITED_PATHS = new Set(["/mcp", "/token", "/register", "/authorize", "/callback"]);
 const RETRY_AFTER_SECONDS = "60";
 
-export function withIpLimit<E extends { IP_RATE_LIMITER: RateLimit }>(handle: Handler<E>): Handler<E> {
+export function withIpLimit<E extends { IP_RATE_LIMITER: RateLimit }>(
+	handle: Handler<E>,
+): Handler<E> {
 	return async (request, env, ctx) => {
 		const { pathname } = new URL(request.url);
 		if (!LIMITED_PATHS.has(pathname)) return handle(request, env, ctx);
@@ -19,7 +21,10 @@ export function withIpLimit<E extends { IP_RATE_LIMITER: RateLimit }>(handle: Ha
 			console.warn("IP rate limit exceeded", pathname);
 			return new Response("Too many requests.", {
 				status: 429,
-				headers: { "Content-Type": "text/plain; charset=utf-8", "Retry-After": RETRY_AFTER_SECONDS },
+				headers: {
+					"Content-Type": "text/plain; charset=utf-8",
+					"Retry-After": RETRY_AFTER_SECONDS,
+				},
 			});
 		}
 		return handle(request, env, ctx);

@@ -27,6 +27,19 @@ interface AuditRow {
 	durationMs: number;
 }
 
+// Free-text arguments are data, not metadata: log their length, never their content.
+const FREE_TEXT_ARGS: Record<string, string[]> = { add_review_note: ["note"] };
+
+function redactArgs(tool: string, args: unknown): unknown {
+	const fields = FREE_TEXT_ARGS[tool];
+	if (!fields || !args || typeof args !== "object") return args;
+	const out: Record<string, unknown> = { ...(args as Record<string, unknown>) };
+	for (const f of fields) {
+		if (typeof out[f] === "string") out[f] = `[redacted: ${(out[f] as string).length} chars]`;
+	}
+	return out;
+}
+
 async function writeAudit(env: AuditEnv, row: AuditRow): Promise<void> {
 	await env.AUDIT_DB.prepare(
 		`INSERT INTO audit_log (request_id, identity, tool, arguments, decision, reason, result_summary, duration_ms)
@@ -36,7 +49,7 @@ async function writeAudit(env: AuditEnv, row: AuditRow): Promise<void> {
 			crypto.randomUUID(),
 			row.identity,
 			row.tool,
-			JSON.stringify(row.args ?? null).slice(0, MAX_ARGS_CHARS),
+			JSON.stringify(redactArgs(row.tool, row.args) ?? null).slice(0, MAX_ARGS_CHARS),
 			row.decision,
 			row.reason,
 			row.summary,
@@ -46,18 +59,27 @@ async function writeAudit(env: AuditEnv, row: AuditRow): Promise<void> {
 }
 
 function rpcError(id: unknown, code: number, message: string, status = 200) {
-	return new Response(JSON.stringify({ jsonrpc: "2.0", id: id ?? null, error: { code, message } }), {
-		status,
-		headers: { "Content-Type": "application/json" },
-	});
+	return new Response(
+		JSON.stringify({ jsonrpc: "2.0", id: id ?? null, error: { code, message } }),
+		{
+			status,
+			headers: { "Content-Type": "application/json" },
+		},
+	);
 }
 
-function parseToolCall(text: string): { id: unknown; tool: string; args: unknown } | "batch" | null {
+function parseToolCall(
+	text: string,
+): { id: unknown; tool: string; args: unknown } | "batch" | null {
 	try {
 		const msg = JSON.parse(text);
 		if (Array.isArray(msg)) return "batch";
 		if (msg?.method !== "tools/call") return null;
-		return { id: msg.id ?? null, tool: String(msg.params?.name ?? ""), args: msg.params?.arguments ?? {} };
+		return {
+			id: msg.id ?? null,
+			tool: String(msg.params?.name ?? ""),
+			args: msg.params?.arguments ?? {},
+		};
 	} catch {
 		return null;
 	}
@@ -84,6 +106,7 @@ function parseRpcResponse(text: string): any {
 function summarize(text: string): string {
 	try {
 		const obj = JSON.parse(text);
+		if ("requestNumber" in obj) return `request=${obj.requestNumber} status=${obj.status}`;
 		if ("found" in obj) return `found=${obj.found}`;
 		if ("count" in obj) return `rows=${obj.count} truncated=${obj.truncated}`;
 		if (Array.isArray(obj.rows)) return `groups=${obj.rows.length}`;
@@ -96,7 +119,11 @@ function summarize(text: string): string {
 function classify(msg: any): { decision: Decision; reason: string | null; summary: string | null } {
 	if (!msg) return { decision: "error", reason: "Unparseable response", summary: null };
 	if (msg.error) {
-		return { decision: "deny", reason: `JSON-RPC ${msg.error.code}: ${String(msg.error.message).slice(0, 300)}`, summary: null };
+		return {
+			decision: "deny",
+			reason: `JSON-RPC ${msg.error.code}: ${String(msg.error.message).slice(0, 300)}`,
+			summary: null,
+		};
 	}
 	const result = msg.result ?? {};
 	const text: string = result.content?.[0]?.text ?? "";
@@ -119,14 +146,22 @@ export function withAudit<E extends AuditEnv>(handle: Handler<E>): Handler<E> {
 		const call = parseToolCall(await request.clone().text());
 
 		// Batches could hide tool calls from the audit layer, so refuse them outright.
-		if (call === "batch") return rpcError(null, -32600, "Batch requests are not supported.", 400);
+		if (call === "batch")
+			return rpcError(null, -32600, "Batch requests are not supported.", 400);
 
 		// Per-user limit on tool calls, keyed by Salesforce user ID (stable even if the username changes).
 		// Counts every tools/call, including invalid ones, so probing spends the budget too.
 		if (call) {
-			const { success } = await env.TOOL_RATE_LIMITER.limit({ key: `user:${props?.userId ?? identity}` });
+			const { success } = await env.TOOL_RATE_LIMITER.limit({
+				key: `user:${props?.userId ?? identity}`,
+			});
 			if (!success) {
-				const limited = rpcError(call.id, -32000, "Rate limit exceeded. Try again in 60 seconds.", 429);
+				const limited = rpcError(
+					call.id,
+					-32000,
+					"Rate limit exceeded. Try again in 60 seconds.",
+					429,
+				);
 				limited.headers.set("Retry-After", RETRY_AFTER_SECONDS);
 				try {
 					await writeAudit(env, {
@@ -210,11 +245,17 @@ export function withRejectionAudit<E extends AuditEnv>(handle: Handler<E>): Hand
 
 		// Only the provider's own refusals: 401/403 carrying a Bearer challenge.
 		const challenge = response.headers.get("WWW-Authenticate") ?? "";
-		if ((response.status !== 401 && response.status !== 403) || !challenge.startsWith("Bearer")) {
+		if (
+			(response.status !== 401 && response.status !== 403) ||
+			!challenge.startsWith("Bearer")
+		) {
 			return response;
 		}
 
-		const text = Number(copy.headers.get("content-length") ?? 0) > MAX_REJECTED_BODY ? "" : await copy.text();
+		const text =
+			Number(copy.headers.get("content-length") ?? 0) > MAX_REJECTED_BODY
+				? ""
+				: await copy.text();
 		const target = rejectedTarget(copy, text);
 
 		try {

@@ -1,6 +1,8 @@
 // Salesforce access for the Safe Agent Gateway.
-// Authenticates as the Gateway Integration user (OAuth client credentials) and runs SOQL.
-// Fails closed: any auth or query error throws, and the caller returns no data.
+// Authenticates as the Gateway Integration user (OAuth client credentials). Reads with SOQL and creates
+// review note requests. The integration user's permission set decides what any call can actually do:
+// it can create requests but can't edit or approve anything, and can't write to applications.
+// Fails closed: any auth or API error throws, and the caller returns no data.
 
 export interface SfEnv {
 	SF_LOGIN_URL: string;
@@ -10,6 +12,9 @@ export interface SfEnv {
 }
 
 type Token = { accessToken: string; instanceUrl: string; fetchedAt: number };
+
+// The only object the gateway code is allowed to create.
+type CreatableObject = "Review_Note_Request__c";
 
 let cached: Token | null = null;
 const TOKEN_TTL_MS = 15 * 60 * 1000;
@@ -37,20 +42,47 @@ async function getToken(env: SfEnv, force = false): Promise<Token> {
 	return cached;
 }
 
-export async function soqlQuery<T>(env: SfEnv, soql: string): Promise<T[]> {
+// One authenticated REST call. On 401 the cached token is refreshed once and the call retried.
+async function sfFetch(env: SfEnv, path: string, init: RequestInit = {}): Promise<Response> {
 	for (let attempt = 0; attempt < 2; attempt++) {
 		const tok = await getToken(env, attempt > 0);
-		const url = `${tok.instanceUrl}/services/data/${env.SF_API_VERSION}/query?q=${encodeURIComponent(soql)}`;
-		const res = await fetch(url, { headers: { Authorization: `Bearer ${tok.accessToken}` } });
-
+		const headers = new Headers(init.headers);
+		headers.set("Authorization", `Bearer ${tok.accessToken}`);
+		const res = await fetch(`${tok.instanceUrl}/services/data/${env.SF_API_VERSION}${path}`, {
+			...init,
+			headers,
+		});
 		if (res.status === 401 && attempt === 0) continue; // expired token: refresh once, then retry
-
-		if (!res.ok) {
-			console.error("Salesforce query failed", res.status, await res.text());
-			throw new Error(`Salesforce query failed (${res.status})`);
-		}
-		const data = await res.json<{ records: T[] }>();
-		return data.records;
+		return res;
 	}
 	throw new Error("Salesforce authentication failed");
+}
+
+export async function soqlQuery<T>(env: SfEnv, soql: string): Promise<T[]> {
+	const res = await sfFetch(env, `/query?q=${encodeURIComponent(soql)}`);
+	if (!res.ok) {
+		console.error("Salesforce query failed", res.status, await res.text());
+		throw new Error(`Salesforce query failed (${res.status})`);
+	}
+	const data = await res.json<{ records: T[] }>();
+	return data.records;
+}
+
+export async function sfCreate(
+	env: SfEnv,
+	sobject: CreatableObject,
+	fields: Record<string, string>,
+): Promise<{ id: string }> {
+	const res = await sfFetch(env, `/sobjects/${sobject}`, {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify(fields),
+	});
+	if (!res.ok) {
+		console.error("Salesforce create failed", res.status, await res.text());
+		throw new Error(`Salesforce create failed (${res.status})`);
+	}
+	const data = await res.json<{ id?: string; success?: boolean }>();
+	if (!data.success || !data.id) throw new Error("Salesforce create returned no id");
+	return { id: data.id };
 }

@@ -239,3 +239,28 @@ Controls verified: allowlisted inputs, row cap, output field allowlist, strict s
   is required, so field-level security can't lock it, and a reviewer could repoint a pending request to
   another application before approving; a validation rule would close this
 - Next: add_review_note tool in the gateway (requires salesforce.ts create support)
+
+## Phase 3: add_review_note tool, gateway side (2026-10-22)
+- add_review_note creates a Review_Note_Request__c only; it never writes to the application. The response
+  tells the agent explicitly that the note has NOT been added and needs a different staff member's approval
+- Requester comes from the OAuth grant (ctx.props.userId), never from agent input; createServer now
+  receives the caller's identity
+- One pending request per application per requester (a repeat returns the existing request number)
+- salesforce.ts: shared sfFetch (401 refresh-once); sfCreate typed to Review_Note_Request__c only
+- Audit: free-text arguments are redacted to their length ([redacted: N chars]) in every audit path;
+  summary records request number and status
+- 1. Propose note on APP-00065: pending_approval, RNR-00002: PASS
+- 2. Repeat: already_pending, same RNR-00002, nothing created: PASS
+- 3. Application unchanged before approval: PASS
+- 4. Spoofed requester (requestedBy argument): rejected by strict schema: PASS
+- 5. Draft application APP-00010: found false, same as nonexistent: PASS
+- 6. 1,001-character note: rejected at schema: PASS
+- 7. Audit rows show [redacted: N chars], no note text stored: PASS
+- 8. Reviewer approves RNR-00002; note appears on APP-00065 via get_application_status: PASS
+- Test plan #6 (write without approval): COMPLETE. Test plan: 6 of 9 passed (#1, #2, #3, #5, #6, #7)
+- Invoke-Mcp.ps1: Set-GatewayToken now prompts (masked) instead of reading the clipboard, which collided
+  with copying commands; -ErrorAction Stop on transport errors
+- Known gap: one scope (gateway:read) covers the write tool; a gateway:write scope would hide it from
+  read-only agents. The approval gate holds regardless
+- Phase 3: COMPLETE
+- Next: Connect-Gateway (PowerShell OAuth client: DCR, PKCE, loopback, refresh), then Phase 4
