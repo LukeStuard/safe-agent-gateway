@@ -129,3 +129,18 @@ Controls verified: allowlisted inputs, row cap, output field allowlist, strict s
   GATEWAY_ORIGIN; KV namespace OAUTH_KV
 - Next: log OAuth rejections (test #1); Invoke-Mcp.ps1 token support; wrong-resource token test;
   rate limiting; add_review_note with approval
+
+  ## Phase 3: OAuth rejection logging (2026-10-22)
+- withRejectionAudit wraps OAuthProvider.fetch, so refusals that never reach withAudit are logged
+- Logs only POST /mcp responses that are 401/403 with a Bearer challenge (the provider's own refusals),
+  so a 403 from inside the MCP handler is not mislabeled as unauthenticated
+- Row: identity "unauthenticated", tool name or (method), decision deny, reason = challenge error code
+  plus whether a token was presented. The token value is never logged
+- Not fail closed on this path: the caller is already refused, so a failed write is only reported
+- No token: 401, logged "HTTP 401: no error code (no token)": PASS
+- Garbage token: 401 invalid_token, logged "HTTP 401: invalid_token (token presented)": PASS
+- Authenticated call after the change: one allow row with Salesforce username, no duplicate: PASS
+- Test plan #1: COMPLETE
+- Threat model notes: every unauthenticated POST costs a D1 write (rate limit must sit in front);
+  normal MCP clients send an unauthenticated initialize on connect, so expect (initialize) deny rows
+- Environment: machine is on Windows PowerShell 5.1; use curl.exe for raw HTTP tests until PowerShell 7

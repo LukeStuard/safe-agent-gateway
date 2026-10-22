@@ -117,3 +117,72 @@ export function withAudit<E extends AuditEnv>(handle: Handler<E>): Handler<E> {
 		return new Response(responseText, { status: response.status, headers: response.headers });
 	};
 }
+
+// OAuthProvider refuses missing, invalid, and wrong-audience tokens before withAudit runs.
+// This wraps the provider itself so those refusals are logged too. The caller is already
+// refused, so a failed audit write is reported but doesn't change the response.
+const MAX_REJECTED_BODY = 64 * 1024;
+
+function rejectedTarget(request: Request, text: string): { tool: string; args: unknown } {
+	if (Number(request.headers.get("content-length") ?? 0) > MAX_REJECTED_BODY) {
+		return { tool: "(oversized)", args: null };
+	}
+	try {
+		const msg = JSON.parse(text);
+		if (Array.isArray(msg)) return { tool: "(batch)", args: null };
+		if (msg?.method === "tools/call") {
+			return { tool: String(msg.params?.name ?? ""), args: msg.params?.arguments ?? {} };
+		}
+		return { tool: `(${String(msg?.method ?? "unknown")})`, args: null };
+	} catch {
+		return { tool: "(unparseable)", args: null };
+	}
+}
+
+function rejectionReason(request: Request, response: Response): string {
+	const challenge = response.headers.get("WWW-Authenticate") ?? "";
+	const code = /error="([^"]+)"/.exec(challenge)?.[1] ?? "no error code";
+	const presented = request.headers.has("Authorization") ? "token presented" : "no token";
+	return `HTTP ${response.status}: ${code} (${presented})`;
+}
+
+export function withRejectionAudit<E extends AuditEnv>(handle: Handler<E>): Handler<E> {
+	return async (request, env, ctx) => {
+		const url = new URL(request.url);
+		if (request.method !== "POST" || url.pathname !== "/mcp") return handle(request, env, ctx);
+
+		const started = Date.now();
+		const copy = request.clone(); // the provider consumes the original body
+		const response = await handle(request, env, ctx);
+
+		// Only the provider's own refusals: 401/403 carrying a Bearer challenge.
+		const challenge = response.headers.get("WWW-Authenticate") ?? "";
+		if ((response.status !== 401 && response.status !== 403) || !challenge.startsWith("Bearer")) {
+			return response;
+		}
+
+		const text = Number(copy.headers.get("content-length") ?? 0) > MAX_REJECTED_BODY ? "" : await copy.text();
+		const target = rejectedTarget(copy, text);
+
+		try {
+			await env.AUDIT_DB.prepare(
+				`INSERT INTO audit_log (request_id, identity, tool, arguments, decision, reason, result_summary, duration_ms)
+				 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+			)
+				.bind(
+					crypto.randomUUID(),
+					"unauthenticated",
+					target.tool,
+					JSON.stringify(target.args).slice(0, MAX_ARGS_CHARS),
+					"deny",
+					rejectionReason(copy, response),
+					null,
+					Date.now() - started,
+				)
+				.run();
+		} catch (err) {
+			console.error("Audit write failed for a rejected request", err);
+		}
+		return response;
+	};
+}

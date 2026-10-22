@@ -2,9 +2,10 @@ import { McpServer } from "@modelcontextprotocol/server";
 import { createMcpHandler } from "agents/mcp/server";
 import { z } from "zod";
 import { soqlQuery, type SfEnv } from "./salesforce";
-import { withAudit } from "./audit";
+import { withAudit, withRejectionAudit } from "./audit";
 import { OAuthProvider } from "@cloudflare/workers-oauth-provider";
 import { handleAuth, GATEWAY_SCOPES, type AuthEnv } from "./auth-handler";
+
 
 // Allowlists. Agent input is validated against these and never spliced into SOQL as free text.
 const TERMS = ["Fall 2026", "Spring 2027", "Summer 2027", "Fall 2027"] as const;
@@ -201,6 +202,8 @@ function getProvider(env: Env): OAuthProvider<Env> {
 	}));
 }
 
+const handleRequest = withRejectionAudit((request, env: Env, ctx) => getProvider(env).fetch(request, env, ctx));
+
 export default {
-	fetch: (request, env, ctx) => getProvider(env).fetch(request, env, ctx),
+	fetch: handleRequest,
 } satisfies ExportedHandler<Env>;
