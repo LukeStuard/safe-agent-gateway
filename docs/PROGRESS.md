@@ -151,3 +151,18 @@ Controls verified: allowlisted inputs, row cap, output field allowlist, strict s
 - Threat model notes: every unauthenticated POST costs a D1 write (rate limit must sit in front);
   normal MCP clients send an unauthenticated initialize on connect, so expect (initialize) deny rows
 - Environment: machine is on Windows PowerShell 5.1; use curl.exe for raw HTTP tests until PowerShell 7
+
+## Phase 3: Invoke-Mcp.ps1 token support (2026-10-22)
+- Rewritten for PowerShell 7: bearer token from $env:GATEWAY_TOKEN, Set-GatewayToken loads it from the
+  clipboard (shape-checked, clipboard cleared), -NoToken and -Token overrides, -SkipHttpErrorCheck so
+  401/403 return as data, tool payload unwrapped into Data. Default URL http://localhost:8788/mcp
+- No token: 401 with resource_metadata challenge: PASS
+- Garbage token: 401 invalid_token: PASS
+- Valid gateway token: get_program_summary by status, 6 rows matching Phase 1, no Draft: PASS
+- Valid gateway token, limit=1000: rejected at schema (<=25), IsError true: PASS
+- Token passthrough: a valid Salesforce access token (integration user, same org) presented to /mcp:
+  401 invalid_token. The gateway accepts only tokens it issued (MCP spec: no token passthrough): PASS
+- Wrong-resource test replaced by token passthrough: the gateway protects a single resource, so a
+  different-audience token can't be minted without adding a route just for the test
+- Lesson: Set-GatewayToken read a pasted command block from the clipboard; it now rejects anything
+  that isn't token-shaped
