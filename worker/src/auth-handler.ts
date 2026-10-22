@@ -61,7 +61,12 @@ function found(headers: Headers, location: string): Response {
 
 // OAuth error back to the MCP client. Only called with a request recovered from storage,
 // whose redirect URI the library already validated.
-function clientError(authReq: AuthRequest, code: string, description: string, headers: Headers): Response {
+function clientError(
+	authReq: AuthRequest,
+	code: string,
+	description: string,
+	headers: Headers,
+): Response {
 	const to = new URL(authReq.redirectUri);
 	to.searchParams.set("error", code);
 	to.searchParams.set("error_description", description);
@@ -122,7 +127,12 @@ ${loopback}
 
 // ---------- steps ----------
 
-async function redirectToSalesforce(request: Request, env: AuthEnv, authReq: AuthRequest, headers?: Headers) {
+async function redirectToSalesforce(
+	request: Request,
+	env: AuthEnv,
+	authReq: AuthRequest,
+	headers?: Headers,
+) {
 	const verifier = b64url(crypto.getRandomValues(new Uint8Array(48)));
 	// beginUpstream stores the approved request and the verifier server-side, encrypted,
 	// and binds the state to this browser.
@@ -169,23 +179,48 @@ async function submitConsent(request: Request, env: AuthEnv): Promise<Response> 
 	}
 
 	// The authorization request comes back from storage, not from the form.
-	const approved = await oauth.approveConsent(request, handle, { scope: GATEWAY_SCOPES, remember: remember(env) });
+	const approved = await oauth.approveConsent(request, handle, {
+		scope: GATEWAY_SCOPES,
+		remember: remember(env),
+	});
 	return redirectToSalesforce(request, env, approved.request, approved.headers);
 }
 
-async function handleCallback(request: Request, env: AuthEnv, ctx: ExecutionContext): Promise<Response> {
+async function handleCallback(
+	request: Request,
+	env: AuthEnv,
+	ctx: ExecutionContext,
+): Promise<Response> {
 	// Refused without the matching browser cookie; single use; recovers the original request.
-	const { request: original, data, headers } = await env.OAUTH_PROVIDER.finishUpstream<UpstreamData>(request);
+	const {
+		request: original,
+		data,
+		headers,
+	} = await env.OAUTH_PROVIDER.finishUpstream<UpstreamData>(request);
 	const url = new URL(request.url);
 
 	const sfError = url.searchParams.get("error");
 	if (sfError) {
-		console.warn("Salesforce authorization error", sfError, url.searchParams.get("error_description"));
-		return clientError(original, "access_denied", "Salesforce did not authorize this sign-in.", headers);
+		console.warn(
+			"Salesforce authorization error",
+			sfError,
+			url.searchParams.get("error_description"),
+		);
+		return clientError(
+			original,
+			"access_denied",
+			"Salesforce did not authorize this sign-in.",
+			headers,
+		);
 	}
 
 	const code = url.searchParams.get("code");
-	if (!code) return htmlError(400, "Missing authorization code. Start again from your MCP client.", headers);
+	if (!code)
+		return htmlError(
+			400,
+			"Missing authorization code. Start again from your MCP client.",
+			headers,
+		);
 
 	const tokenRes = await fetch(new URL("/services/oauth2/token", env.SF_LOGIN_URL), {
 		method: "POST",
@@ -227,10 +262,19 @@ async function handleCallback(request: Request, env: AuthEnv, ctx: ExecutionCont
 	// Only identities from this gateway's own Salesforce org are accepted.
 	if (info.organization_id !== env.SF_ORG_ID) {
 		console.warn("Rejected login from another org", info.organization_id);
-		return clientError(original, "access_denied", "This Salesforce account belongs to a different organization.", headers);
+		return clientError(
+			original,
+			"access_denied",
+			"This Salesforce account belongs to a different organization.",
+			headers,
+		);
 	}
 
-	const props: GatewayProps = { userId: info.user_id, username: info.preferred_username, email: info.email ?? null };
+	const props: GatewayProps = {
+		userId: info.user_id,
+		username: info.preferred_username,
+		email: info.email ?? null,
+	};
 	const { redirectTo } = await env.OAUTH_PROVIDER.completeAuthorization({
 		request: original,
 		userId: info.user_id,
@@ -243,12 +287,19 @@ async function handleCallback(request: Request, env: AuthEnv, ctx: ExecutionCont
 
 // ---------- router (OAuthProvider's defaultHandler) ----------
 
-export async function handleAuth(request: Request, env: AuthEnv, ctx: ExecutionContext): Promise<Response> {
+export async function handleAuth(
+	request: Request,
+	env: AuthEnv,
+	ctx: ExecutionContext,
+): Promise<Response> {
 	const { pathname } = new URL(request.url);
 	try {
-		if (pathname === "/authorize" && request.method === "GET") return await startAuthorize(request, env);
-		if (pathname === "/authorize" && request.method === "POST") return await submitConsent(request, env);
-		if (pathname === "/callback" && request.method === "GET") return await handleCallback(request, env, ctx);
+		if (pathname === "/authorize" && request.method === "GET")
+			return await startAuthorize(request, env);
+		if (pathname === "/authorize" && request.method === "POST")
+			return await submitConsent(request, env);
+		if (pathname === "/callback" && request.method === "GET")
+			return await handleCallback(request, env, ctx);
 		return new Response("Not found", { status: 404 });
 	} catch (error) {
 		if (error instanceof AuthorizationError) {
@@ -262,7 +313,7 @@ export async function handleAuth(request: Request, env: AuthEnv, ctx: ExecutionC
 				return Response.redirect(to.href, 302);
 			}
 			// Expired, already used, opened in another browser, or an untrusted client: render here.
-				return htmlError(400, error.description);
+			return htmlError(400, error.description);
 		}
 		throw error; // a bug or an outage, not the user's doing: surface as a 500
 	}

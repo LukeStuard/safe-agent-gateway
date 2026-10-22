@@ -29,7 +29,11 @@ async function getToken(env: SfEnv, force = false): Promise<Token> {
 	if (!res.ok) throw new Error(`Salesforce token request failed (${res.status})`);
 
 	const data = await res.json<{ access_token: string; instance_url: string }>();
-	cached = { accessToken: data.access_token, instanceUrl: data.instance_url, fetchedAt: Date.now() };
+	cached = {
+		accessToken: data.access_token,
+		instanceUrl: data.instance_url,
+		fetchedAt: Date.now(),
+	};
 	return cached;
 }
 

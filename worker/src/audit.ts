@@ -13,18 +13,27 @@ const MAX_ARGS_CHARS = 1000;
 const SALESFORCE_FAILURE = "The Salesforce request failed";
 
 function rpcError(id: unknown, code: number, message: string, status = 200) {
-	return new Response(JSON.stringify({ jsonrpc: "2.0", id: id ?? null, error: { code, message } }), {
-		status,
-		headers: { "Content-Type": "application/json" },
-	});
+	return new Response(
+		JSON.stringify({ jsonrpc: "2.0", id: id ?? null, error: { code, message } }),
+		{
+			status,
+			headers: { "Content-Type": "application/json" },
+		},
+	);
 }
 
-function parseToolCall(text: string): { id: unknown; tool: string; args: unknown } | "batch" | null {
+function parseToolCall(
+	text: string,
+): { id: unknown; tool: string; args: unknown } | "batch" | null {
 	try {
 		const msg = JSON.parse(text);
 		if (Array.isArray(msg)) return "batch";
 		if (msg?.method !== "tools/call") return null;
-		return { id: msg.id ?? null, tool: String(msg.params?.name ?? ""), args: msg.params?.arguments ?? {} };
+		return {
+			id: msg.id ?? null,
+			tool: String(msg.params?.name ?? ""),
+			args: msg.params?.arguments ?? {},
+		};
 	} catch {
 		return null;
 	}
@@ -63,7 +72,11 @@ function summarize(text: string): string {
 function classify(msg: any): { decision: Decision; reason: string | null; summary: string | null } {
 	if (!msg) return { decision: "error", reason: "Unparseable response", summary: null };
 	if (msg.error) {
-		return { decision: "deny", reason: `JSON-RPC ${msg.error.code}: ${String(msg.error.message).slice(0, 300)}`, summary: null };
+		return {
+			decision: "deny",
+			reason: `JSON-RPC ${msg.error.code}: ${String(msg.error.message).slice(0, 300)}`,
+			summary: null,
+		};
 	}
 	const result = msg.result ?? {};
 	const text: string = result.content?.[0]?.text ?? "";
@@ -80,12 +93,14 @@ export function withAudit<E extends AuditEnv>(handle: Handler<E>): Handler<E> {
 		if (request.method !== "POST" || url.pathname !== "/mcp") return handle(request, env, ctx);
 
 		const started = Date.now();
-        // OAuthProvider only reaches this handler with a valid token, so props are always present here.
-		const identity = (ctx as ExecutionContext & { props?: GatewayProps }).props?.username ?? "unknown";
+		// OAuthProvider only reaches this handler with a valid token, so props are always present here.
+		const identity =
+			(ctx as ExecutionContext & { props?: GatewayProps }).props?.username ?? "unknown";
 		const call = parseToolCall(await request.clone().text());
 
 		// Batches could hide tool calls from the audit layer, so refuse them outright.
-		if (call === "batch") return rpcError(null, -32600, "Batch requests are not supported.", 400);
+		if (call === "batch")
+			return rpcError(null, -32600, "Batch requests are not supported.", 400);
 
 		const response = await handle(request, env, ctx);
 		if (!call) return response; // initialize, tools/list, notifications: not audited
@@ -157,11 +172,17 @@ export function withRejectionAudit<E extends AuditEnv>(handle: Handler<E>): Hand
 
 		// Only the provider's own refusals: 401/403 carrying a Bearer challenge.
 		const challenge = response.headers.get("WWW-Authenticate") ?? "";
-		if ((response.status !== 401 && response.status !== 403) || !challenge.startsWith("Bearer")) {
+		if (
+			(response.status !== 401 && response.status !== 403) ||
+			!challenge.startsWith("Bearer")
+		) {
 			return response;
 		}
 
-		const text = Number(copy.headers.get("content-length") ?? 0) > MAX_REJECTED_BODY ? "" : await copy.text();
+		const text =
+			Number(copy.headers.get("content-length") ?? 0) > MAX_REJECTED_BODY
+				? ""
+				: await copy.text();
 		const target = rejectedTarget(copy, text);
 
 		try {
