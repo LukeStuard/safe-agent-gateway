@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ValidationRule xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Request_Is_Immutable</fullName>
+    <active>true</active>
+    <description>The application and requester can't change after a request is created, so the reviewer approves exactly what was requested.</description>
+    <errorConditionFormula>AND(
+    NOT(ISNEW()),
+    OR(
+        ISCHANGED(Application__c),
+        ISCHANGED(Requested_By__c)
+    )
+)</errorConditionFormula>
+    <errorMessage>A request's application and requester can't be changed after it's created. Reject it and submit a new one instead.</errorMessage>
+</ValidationRule>

@@ -208,3 +208,34 @@ Controls verified: allowlisted inputs, row cap, output field allowlist, strict s
 - Note: each local request takes about 2s, including 429s that never touch Salesforce; suspect localhost
   IPv6 fallback on Windows. Sequential tests can't reach the IP limit, so the IP test runs in parallel
 - Test plan: 5 of 9 passed (#1, #2, #3, #5, #7)
+
+## Phase 3: add_review_note approval gate, Salesforce side (2026-10-22)
+- Design: approval lives in Salesforce. The gateway will only create Review_Note_Request__c records;
+  a different staff member approves in Salesforce, and a flow appends the note to the application
+- Review_Note_Request__c (RNR-#####): Application (required lookup), Proposed_Note__c (1,000),
+  Requested_By__c (User, from the gateway's OAuth identity), Status__c (Pending/Approved/Rejected,
+  history tracked), Decided_By__c, Decided_On__c. Org-wide Read/Write; object permissions decide who edits
+- Validation rules: No_Self_Decision (requester can't approve or reject, admins included),
+  Decision_Is_Final, New_Request_Must_Be_Pending
+- Flows: Stamp Decision (before-save: Decided_By, Decided_On); Apply Approved Note (after-save,
+  Status changed to Approved: appends "[date | RNR | requested by | approved by] note" to Review_Notes__c)
+- Permission sets: Gateway_Integration create + read on requests, no edit, Status read-only, still no edit
+  on Application. New Gateway_Reviewer: edit Status only, read-only on Application (flow runs in system
+  context). Gateway_Admin full access. Reviewer user on a Salesforce Platform license, no Gateway_Agent_Access
+- Integration user describe: createable True, updateable False, deletable False: PASS
+- A. Integration user creates request RNR-00001 (Pending by default): PASS
+- B1. Integration user approves its own request: CANNOT_INSERT_UPDATE_ACTIVATE_ENTITY (no Edit): PASS
+- B2. Integration user writes the note directly to the application: CANNOT_INSERT_UPDATE_ACTIVATE_ENTITY: PASS
+- B3. Integration user creates an already-approved request: INVALID_FIELD_FOR_INSERT_UPDATE (field-level
+  security stops it before the validation rule): PASS
+- C. Requester (System Administrator) approves own request: blocked by No_Self_Decision: PASS
+- D. Reviewer approves: saved, Decided By and Decided On stamped, note appended to APP-00065 with full
+  attribution, prompt-injection fixture untouched, Last Modified By = reviewer: PASS
+- E. Reviewer changes Approved to Rejected: blocked by Decision_Is_Final: PASS
+- Lessons: metadata-deployed fields get no field access, even for admins (Flow Builder couldn't see
+  Status until Gateway_Admin granted it). A read-only setting on a page layout is not a control: the
+  System Administrator "Edit Read Only Fields" permission overrides it
+- Known gaps (threat model): an admin can edit Proposed_Note__c before approval (accepted). Application__c
+  is required, so field-level security can't lock it, and a reviewer could repoint a pending request to
+  another application before approving; a validation rule would close this
+- Next: add_review_note tool in the gateway (requires salesforce.ts create support)
