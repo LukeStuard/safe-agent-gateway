@@ -50,3 +50,6 @@ $RECYCLE.BIN/
 # Bulk API job result files
 *-success-records.csv
 *-failed-records.csv
+
+# Safe Agent Gateway test client registration (machine-specific)
+scripts/.gateway-client.json

@@ -24,6 +24,23 @@
 - Get-GatewayToken.ps1 in PowerShell 7: token acquired, Application count 210: PASS
 - Use-GatewayCloudflare.ps1 in PowerShell 7: wrangler whoami shows personal account via API token: PASS
 
+## Tooling: Connect-Gateway OAuth client (2026-10-22)
+- Replaced manual token copying (clipboard collided with copying commands) with a PowerShell OAuth client
+  in Invoke-Mcp.ps1: endpoints from /.well-known/oauth-authorization-server, dynamic client registration
+  as a public client (token_endpoint_auth_method none), PKCE S256, random state, resource indicator,
+  loopback redirect http://127.0.0.1:33418/callback caught by a raw TCP listener (no admin URL ACL)
+- Callback checks: state must match, iss must equal the gateway issuer, error parameter surfaced
+- Only the client ID is saved (scripts/.gateway-client.json, gitignored). Refresh token stays in session memory
+- Invoke-Mcp refreshes the session token before expiry and once on invalid_token; explicit -Token values
+  are never refreshed, so negative tests stay honest. Set-GatewayToken kept as a masked-prompt fallback
+- Consent page with a new client: shows "registered itself; name not verified" and the loopback warning: PASS
+- Browser sign-in, callback, code exchange: connected: PASS
+- Forced stale token: refreshed automatically, call succeeded, no browser: PASS
+- Explicit garbage token: 401 invalid_token, not refreshed: PASS
+- Threat model note: the authorization code (which begins with the Salesforce user ID, a library format)
+  appears in the callback URL and browser history. Accepted: single-use, short-lived, PKCE-bound;
+  Salesforce user IDs are not secrets
+
 ## Dependency review: MCP SDK advisories (2026-10-22)
 - npm audit --omit=dev flagged 4 high advisories in runtime packages (agents 0.20.1, MCP server/client 2.0.0, sdk 1.30.0)
 - agents pins its MCP peers to exact versions; upgrading @modelcontextprotocol/server alone would install two
