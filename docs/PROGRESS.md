@@ -17,6 +17,13 @@
 - Dedicated Dev Edition instead of a Trailhead Playground (clean slate, no badge clutter)
 - Build the data model as source metadata in the repo, not in the UI
 
+## Tooling: PowerShell 7 (2026-10-22)
+- Installed PowerShell 7.6.7 (winget, Store/MSIX package); VS Code default terminal is now PowerShell 7
+- Replaced the CredentialManager module with scripts/GatewayCredential.ps1 (Win32 CredRead via Add-Type),
+  because the module is Windows PowerShell only. Same Credential Manager targets, nothing re-entered
+- Get-GatewayToken.ps1 in PowerShell 7: token acquired, Application count 210: PASS
+- Use-GatewayCloudflare.ps1 in PowerShell 7: wrangler whoami shows personal account via API token: PASS
+
 ### Cautions
 - Global default org is sandboxCopy (CIAM). Always run project commands from this folder so gatewayDev is used.
 - Never commit .sfdx/ or .sf/ (auth info). Run git status before the first push.
