@@ -24,6 +24,28 @@
 - Get-GatewayToken.ps1 in PowerShell 7: token acquired, Application count 210: PASS
 - Use-GatewayCloudflare.ps1 in PowerShell 7: wrangler whoami shows personal account via API token: PASS
 
+## Dependency review: MCP SDK advisories (2026-10-22)
+- npm audit --omit=dev flagged 4 high advisories in runtime packages (agents 0.20.1, MCP server/client 2.0.0, sdk 1.30.0)
+- agents pins its MCP peers to exact versions; upgrading @modelcontextprotocol/server alone would install two
+  SDK copies and break types. Upgraded as a set: agents 0.30.0, server/client 2.3.1, sdk 1.32.1 (--save-exact)
+- Exposure assessment before the fix:
+  - SDK bearer auth accepting tokens for another service: not affected (auth is OAuthProvider; passthrough test proves it)
+  - One request exhausting memory during validation: affected, reachable only with a gateway token. Rate limiting
+    does not mitigate a single request. Fixed by the upgrade
+  - Shared transport/server delivering one client's messages to another: likely not affected (new server and
+    transport per POST). Patched anyway
+  - Client SDK advisories (OAuth credentials sent to MCP-chosen server, cross-origin redirects): not affected,
+    the gateway never acts as an MCP client
+  - Experimental tasks not bound to session: not affected, tasks unused
+- Verified: npm ls shows one copy of each MCP package and zod 4.6.7; tsc --noEmit clean; npm audit --omit=dev: 0
+- Regression: program summary, pending reviews (10, truncated), APP-00065 notes untrusted, limit=1000 rejected,
+  unknown tool rejected, no token 401: PASS
+- Observed: reconnecting Inspector invalidated the previously copied access token (library revokes existing
+  grants for the same user and client on re-authorization), so a leaked token dies at the owner's next sign-in
+- Remaining dev-only finding: tinypool (critical) via oxfmt, the template's formatter. Not bundled into the
+  Worker; fixed separately
+- Also: Wrangler updated to 4.152.0 (separate commit)
+
 ### Cautions
 - Global default org is sandboxCopy (CIAM). Always run project commands from this folder so gatewayDev is used.
 - Never commit .sfdx/ or .sf/ (auth info). Run git status before the first push.
