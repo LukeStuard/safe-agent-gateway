@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ValidationRule xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Decision_Is_Final</fullName>
+    <active>true</active>
+    <description>A request can only leave Pending once. Approved and Rejected are final.</description>
+    <errorConditionFormula>AND(
+    ISCHANGED(Status__c),
+    NOT(ISPICKVAL(PRIORVALUE(Status__c), "Pending"))
+)</errorConditionFormula>
+    <errorDisplayField>Status__c</errorDisplayField>
+    <errorMessage>This request has already been decided. Decisions can't be changed.</errorMessage>
+</ValidationRule>

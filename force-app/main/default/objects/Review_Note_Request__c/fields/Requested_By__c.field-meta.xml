@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Requested_By__c</fullName>
+    <label>Requested By</label>
+    <description>The person the agent acted for, taken from the gateway's OAuth identity. CreatedBy is always the integration user.</description>
+    <type>Lookup</type>
+    <referenceTo>User</referenceTo>
+    <relationshipName>Review_Note_Requests</relationshipName>
+    <deleteConstraint>SetNull</deleteConstraint>
+    <trackHistory>false</trackHistory>
+</CustomField>

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ValidationRule xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>New_Request_Must_Be_Pending</fullName>
+    <active>true</active>
+    <description>New requests start Pending and must name the requester and include a note.</description>
+    <errorConditionFormula>AND(
+    ISNEW(),
+    OR(
+        NOT(ISPICKVAL(Status__c, "Pending")),
+        ISBLANK(Requested_By__c),
+        ISBLANK(Proposed_Note__c)
+    )
+)</errorConditionFormula>
+    <errorMessage>A new request must be Pending and include a requester and a note.</errorMessage>
+</ValidationRule>

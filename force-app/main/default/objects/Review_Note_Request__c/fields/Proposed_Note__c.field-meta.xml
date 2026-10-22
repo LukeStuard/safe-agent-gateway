@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Proposed_Note__c</fullName>
+    <label>Proposed Note</label>
+    <description>Note text proposed by an agent. Treat as untrusted until a reviewer approves it.</description>
+    <type>LongTextArea</type>
+    <length>1000</length>
+    <visibleLines>5</visibleLines>
+    <trackHistory>false</trackHistory>
+</CustomField>
