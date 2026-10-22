@@ -1,16 +1,23 @@
 // OAuth front door for the Safe Agent Gateway.
 //
-// The Worker is the OAuth 2.1 authorization server for MCP clients (via workers-oauth-provider),
-// and Salesforce is the upstream identity provider.
-//   GET  /authorize  Parse the MCP client's request. Show a consent page, unless this browser
-//                    already approved this client.
-//   POST /authorize  Record the decision. On approve, redirect to Salesforce login.
-//   GET  /callback   Redeem the Salesforce code (PKCE + secret), read /userinfo, check the org,
-//                    then issue the gateway's own grant to the MCP client.
-// The Salesforce access token is used once for /userinfo and then revoked. It is never stored
-// and never handed to the MCP client.
+// The Worker is the OAuth 2.1 authorization server for MCP clients (workers-oauth-provider),
+// and Salesforce is the upstream identity provider. Consent, browser binding, and single-use
+// state come from the library's helpers, which implement the MCP confused-deputy requirements
+// for proxy servers:
+//   GET  /authorize  Validate the client's request. Skip to Salesforce if this browser already
+//                    approved this client, otherwise show the consent page.
+//   POST /authorize  Approve (remembered 30 days) or deny. Approve starts the Salesforce redirect.
+//   GET  /callback   Recover the original request, redeem the Salesforce code (PKCE + secret),
+//                    read /userinfo, check the org, and issue the gateway's own grant.
+// The Salesforce token is used once for /userinfo and then revoked. It is never stored and
+// never handed to the MCP client.
 
-import type { AuthRequest, OAuthHelpers } from "@cloudflare/workers-oauth-provider";
+import {
+	AuthorizationError,
+	type AuthRequest,
+	type ConsentDescription,
+	type OAuthHelpers,
+} from "@cloudflare/workers-oauth-provider";
 
 export type AuthEnv = Env & { OAUTH_PROVIDER: OAuthHelpers };
 
@@ -20,9 +27,10 @@ export interface GatewayProps {
 	email: string | null;
 }
 
-interface Flow {
-	oauthReq: AuthRequest;
-	codeVerifier?: string; // set once the user has consented and been sent to Salesforce
+export const GATEWAY_SCOPES = ["gateway:read"];
+
+interface UpstreamData {
+	verifier: string;
 }
 
 interface SalesforceUserInfo {
@@ -32,15 +40,35 @@ interface SalesforceUserInfo {
 	email?: string;
 }
 
-const FLOW_PREFIX = "gw_flow:";
-const FLOW_TTL_SECONDS = 600;
-const FLOW_COOKIE = "gw_flow";
-const APPROVED_COOKIE = "gw_approved";
-const APPROVED_MAX_AGE = 60 * 60 * 24 * 30;
-const MAX_APPROVED_CLIENTS = 20;
-export const GATEWAY_SCOPES = ["gateway:read"];
+// ---------- helpers ----------
 
-// ---------- encoding, cookies, responses ----------
+const escapeHtml = (value: string) => value.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+
+function htmlError(status: number, message: string, headers?: Headers): Response {
+	const res = new Response(
+		`<!doctype html><meta charset="utf-8"><title>Sign-in error</title><p>${escapeHtml(message)}</p>`,
+		{ status, headers: { "Content-Type": "text/html; charset=utf-8" } },
+	);
+	// Carry the helpers' cookie-clearing headers, if any.
+	for (const cookie of headers?.getSetCookie() ?? []) res.headers.append("Set-Cookie", cookie);
+	return res;
+}
+
+function found(headers: Headers, location: string): Response {
+	headers.set("Location", location);
+	return new Response(null, { status: 302, headers });
+}
+
+// OAuth error back to the MCP client. Only called with a request recovered from storage,
+// whose redirect URI the library already validated.
+function clientError(authReq: AuthRequest, code: string, description: string, headers: Headers): Response {
+	const to = new URL(authReq.redirectUri);
+	to.searchParams.set("error", code);
+	to.searchParams.set("error_description", description);
+	if (authReq.state) to.searchParams.set("state", authReq.state);
+	if (authReq.issuer) to.searchParams.set("iss", authReq.issuer);
+	return found(headers, to.href);
+}
 
 function b64url(bytes: Uint8Array): string {
 	let s = "";
@@ -48,126 +76,60 @@ function b64url(bytes: Uint8Array): string {
 	return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
-function b64urlDecode(s: string): Uint8Array {
-	const b64 = s.replace(/-/g, "+").replace(/_/g, "/") + "=".repeat((4 - (s.length % 4)) % 4);
-	return Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
-}
-
-function randomToken(bytes = 32): string {
-	return b64url(crypto.getRandomValues(new Uint8Array(bytes)));
-}
-
-async function sha256b64url(input: string): Promise<string> {
-	const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(input));
+async function pkceChallenge(verifier: string): Promise<string> {
+	const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier));
 	return b64url(new Uint8Array(digest));
-}
-
-const HTML_ESCAPES: Record<string, string> = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
-function escapeHtml(s: string): string {
-	return s.replace(/[&<>"']/g, (c) => HTML_ESCAPES[c]);
-}
-
-function getCookie(request: Request, name: string): string | null {
-	for (const part of (request.headers.get("Cookie") ?? "").split(";")) {
-		const [k, ...v] = part.trim().split("=");
-		if (k === name) return v.join("=");
-	}
-	return null;
-}
-
-function setCookie(request: Request, name: string, value: string, maxAge: number): string {
-	const secure = new URL(request.url).protocol === "https:" ? "; Secure" : "";
-	return `${name}=${value}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure}`;
-}
-
-function redirect(location: string, cookies: string[] = []): Response {
-	const headers = new Headers({ Location: location });
-	for (const c of cookies) headers.append("Set-Cookie", c);
-	return new Response(null, { status: 302, headers });
-}
-
-function htmlError(status: number, message: string): Response {
-	return new Response(
-		`<!doctype html><meta charset="utf-8"><title>Sign-in error</title><p>${escapeHtml(message)}</p>`,
-		{ status, headers: { "Content-Type": "text/html; charset=utf-8" } },
-	);
 }
 
 const callbackUrl = (request: Request) => new URL("/callback", request.url).href;
 
-// ---------- flow state (KV, single use, 10 minutes) ----------
-
-async function loadFlow(env: AuthEnv, flowId: string): Promise<Flow | null> {
-	const raw = await env.OAUTH_KV.get(FLOW_PREFIX + flowId);
-	return raw ? (JSON.parse(raw) as Flow) : null;
-}
-
-async function saveFlow(env: AuthEnv, flowId: string, flow: Flow): Promise<void> {
-	await env.OAUTH_KV.put(FLOW_PREFIX + flowId, JSON.stringify(flow), { expirationTtl: FLOW_TTL_SECONDS });
-}
-
-// ---------- approved-clients cookie (HMAC-signed) ----------
-
-async function hmacKey(env: AuthEnv): Promise<CryptoKey> {
-	const raw = new Uint8Array(env.COOKIE_ENCRYPTION_KEY.match(/../g)!.map((h) => parseInt(h, 16)));
-	return crypto.subtle.importKey("raw", raw, { name: "HMAC", hash: "SHA-256" }, false, ["sign", "verify"]);
-}
-
-async function readApproved(request: Request, env: AuthEnv): Promise<string[]> {
-	const value = getCookie(request, APPROVED_COOKIE);
-	const [payload, sig] = value?.split(".") ?? [];
-	if (!payload || !sig) return [];
-	try {
-		const valid = await crypto.subtle.verify("HMAC", await hmacKey(env), b64urlDecode(sig), new TextEncoder().encode(payload));
-		if (!valid) return [];
-		const list = JSON.parse(new TextDecoder().decode(b64urlDecode(payload)));
-		return Array.isArray(list) ? list.filter((x): x is string => typeof x === "string") : [];
-	} catch {
-		return [];
-	}
-}
-
-async function approvedCookie(request: Request, env: AuthEnv, clientIds: string[]): Promise<string> {
-	const payload = b64url(new TextEncoder().encode(JSON.stringify(clientIds.slice(-MAX_APPROVED_CLIENTS))));
-	const sig = await crypto.subtle.sign("HMAC", await hmacKey(env), new TextEncoder().encode(payload));
-	return setCookie(request, APPROVED_COOKIE, `${payload}.${b64url(new Uint8Array(sig))}`, APPROVED_MAX_AGE);
-}
+// Remembered approvals live in a signed __Host- cookie, bound to client, redirect URI,
+// resource, and scopes. No subject: as a proxy, the gateway only learns who the user is
+// from Salesforce after consent.
+const remember = (env: AuthEnv) => ({ secret: env.COOKIE_ENCRYPTION_KEY });
 
 // ---------- consent page ----------
 
-function consentPage(flowId: string, clientName: string, redirectUri: string): Response {
-	const html = `<!doctype html>
+function consentPage(details: ConsentDescription, handle: string): string {
+	const name = escapeHtml(details.clientName);
+	const origin = details.clientDomain
+		? `Published by <strong>${escapeHtml(details.clientDomain)}</strong>.`
+		: "This app registered itself; its name is not verified.";
+	const loopback = details.redirectIsLoopback
+		? `<p class="warn"><strong>This sends access to an app on your computer.</strong> Continue only if you just started signing in from it.</p>`
+		: "";
+	return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Authorize access</title>
+<title>Authorize ${name}</title>
 <style>
 body{font-family:system-ui,sans-serif;max-width:34rem;margin:4rem auto;padding:0 1rem;line-height:1.5}
-code{background:#f2f2f2;padding:.1rem .3rem;border-radius:4px;word-break:break-all}
+.warn{background:#fff4e5;border-left:4px solid #e8a33d;padding:.5rem .75rem}
 button{font-size:1rem;padding:.5rem 1rem;margin:.25rem .5rem .25rem 0}
 </style></head>
 <body>
 <h1>Safe Agent Gateway</h1>
-<p><strong>${escapeHtml(clientName)}</strong> is requesting access to the gateway's application tools on your behalf.</p>
-<p>After you approve, you'll be returned to:<br><code>${escapeHtml(redirectUri)}</code></p>
-<p>If you didn't start this, or don't recognize that address, deny.</p>
+<p><strong>${name}</strong> is requesting access to the gateway's application tools on your behalf.</p>
+<p>${origin} Access will be sent to <strong>${escapeHtml(details.redirectHost)}</strong>.</p>
+${loopback}
+<p>Permissions: ${GATEWAY_SCOPES.map(escapeHtml).join(", ")}</p>
 <form method="post" action="/authorize">
-<input type="hidden" name="flow" value="${escapeHtml(flowId)}">
+<input type="hidden" name="handle" value="${escapeHtml(handle)}">
 <button type="submit" name="decision" value="approve">Approve and sign in with Salesforce</button>
 <button type="submit" name="decision" value="deny">Deny</button>
 </form>
 </body></html>`;
-	return new Response(html, {
-		headers: {
-			"Content-Type": "text/html; charset=utf-8",
-			"Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'",
-		},
-	});
 }
 
 // ---------- steps ----------
 
-async function redirectToSalesforce(request: Request, env: AuthEnv, flowId: string, flow: Flow, cookies: string[]) {
-	const codeVerifier = randomToken(48);
-	await saveFlow(env, flowId, { ...flow, codeVerifier });
+async function redirectToSalesforce(request: Request, env: AuthEnv, authReq: AuthRequest, headers?: Headers) {
+	const verifier = b64url(crypto.getRandomValues(new Uint8Array(48)));
+	// beginUpstream stores the approved request and the verifier server-side, encrypted,
+	// and binds the state to this browser.
+	const upstream = await env.OAUTH_PROVIDER.beginUpstream(authReq, {
+		data: { verifier } satisfies UpstreamData,
+		headers,
+	});
 
 	const url = new URL("/services/oauth2/authorize", env.SF_LOGIN_URL);
 	url.search = new URLSearchParams({
@@ -175,92 +137,55 @@ async function redirectToSalesforce(request: Request, env: AuthEnv, flowId: stri
 		client_id: env.SF_LOGIN_CLIENT_ID,
 		redirect_uri: callbackUrl(request),
 		scope: "openid id",
-		state: flowId,
-		code_challenge: await sha256b64url(codeVerifier),
+		state: upstream.state,
+		code_challenge: await pkceChallenge(verifier),
 		code_challenge_method: "S256",
 	}).toString();
-	return redirect(url.href, cookies);
+	return found(upstream.headers, url.href);
 }
 
 async function startAuthorize(request: Request, env: AuthEnv): Promise<Response> {
-	let oauthReq: AuthRequest;
-	try {
-		oauthReq = await env.OAUTH_PROVIDER.parseAuthRequest(request);
-	} catch (err) {
-		console.warn("Invalid authorization request", err);
-		return htmlError(400, "Invalid authorization request.");
+	const oauth = env.OAUTH_PROVIDER;
+	const authReq = await oauth.parseAuthRequest(request);
+
+	if (await oauth.isConsentRemembered(request, authReq, remember(env))) {
+		return redirectToSalesforce(request, env, authReq);
 	}
 
-	const client = await env.OAUTH_PROVIDER.lookupClient(oauthReq.clientId);
-	if (!client) return htmlError(400, "Unknown client.");
-
-	const flowId = randomToken();
-	const flow: Flow = { oauthReq };
-	const flowCookie = setCookie(request, FLOW_COOKIE, flowId, FLOW_TTL_SECONDS);
-
-	// This browser already approved this exact client: skip straight to Salesforce.
-	if ((await readApproved(request, env)).includes(oauthReq.clientId)) {
-		return redirectToSalesforce(request, env, flowId, flow, [flowCookie]);
-	}
-
-	await saveFlow(env, flowId, flow);
-	const res = consentPage(flowId, client.clientName ?? oauthReq.clientId, oauthReq.redirectUri);
-	res.headers.append("Set-Cookie", flowCookie);
-	return res;
+	const details = await oauth.describeConsent(authReq); // before beginConsent: a failed lookup leaves nothing in KV
+	const consent = await oauth.beginConsent(authReq); // binding cookie, no framing, no caching
+	consent.headers.set("Content-Type", "text/html; charset=utf-8");
+	return new Response(consentPage(details, consent.handle), { headers: consent.headers });
 }
 
 async function submitConsent(request: Request, env: AuthEnv): Promise<Response> {
+	const oauth = env.OAUTH_PROVIDER;
 	const form = await request.formData();
-	const flowId = String(form.get("flow") ?? "");
-
-	// The form value must match this browser's flow cookie. SameSite=Lax keeps the cookie off
-	// cross-site POSTs, so another site can't submit consent on the user's behalf.
-	if (!flowId || flowId !== getCookie(request, FLOW_COOKIE)) {
-		return htmlError(400, "This approval form is invalid. Start again from your MCP client.");
-	}
-
-	const flow = await loadFlow(env, flowId);
-	if (!flow || flow.codeVerifier) {
-		return htmlError(400, "This sign-in attempt expired or was already used. Start again from your MCP client.");
-	}
+	const handle = String(form.get("handle") ?? "");
 
 	if (form.get("decision") !== "approve") {
-		await env.OAUTH_KV.delete(FLOW_PREFIX + flowId);
-		const denied = new URL(flow.oauthReq.redirectUri); // already validated by parseAuthRequest
-		denied.searchParams.set("error", "access_denied");
-		if (flow.oauthReq.state) denied.searchParams.set("state", flow.oauthReq.state);
-        if (flow.oauthReq.issuer) denied.searchParams.set("iss", flow.oauthReq.issuer);
-		return redirect(denied.href, [setCookie(request, FLOW_COOKIE, "", 0)]);
+		const denied = await oauth.denyConsent(request, handle); // access_denied, state, iss
+		return new Response(null, { status: 302, headers: denied.headers });
 	}
 
-	const approved = new Set(await readApproved(request, env));
-	approved.add(flow.oauthReq.clientId);
-	return redirectToSalesforce(request, env, flowId, flow, [await approvedCookie(request, env, [...approved])]);
+	// The authorization request comes back from storage, not from the form.
+	const approved = await oauth.approveConsent(request, handle, { scope: GATEWAY_SCOPES, remember: remember(env) });
+	return redirectToSalesforce(request, env, approved.request, approved.headers);
 }
 
 async function handleCallback(request: Request, env: AuthEnv, ctx: ExecutionContext): Promise<Response> {
+	// Refused without the matching browser cookie; single use; recovers the original request.
+	const { request: original, data, headers } = await env.OAUTH_PROVIDER.finishUpstream<UpstreamData>(request);
 	const url = new URL(request.url);
-	const state = url.searchParams.get("state");
-
-	// State must match this browser's flow cookie (blocks login CSRF and links opened elsewhere).
-	if (!state || state !== getCookie(request, FLOW_COOKIE)) {
-		return htmlError(400, "This sign-in link is invalid or was opened in a different browser. Start again from your MCP client.");
-	}
-
-	const flow = await loadFlow(env, state);
-	await env.OAUTH_KV.delete(FLOW_PREFIX + state); // single use
-	if (!flow?.codeVerifier) {
-		return htmlError(400, "This sign-in attempt expired or was already used. Start again from your MCP client.");
-	}
 
 	const sfError = url.searchParams.get("error");
 	if (sfError) {
 		console.warn("Salesforce authorization error", sfError, url.searchParams.get("error_description"));
-		return htmlError(403, "Salesforce did not authorize this sign-in. Your account may not have access to the gateway.");
+		return clientError(original, "access_denied", "Salesforce did not authorize this sign-in.", headers);
 	}
 
 	const code = url.searchParams.get("code");
-	if (!code) return htmlError(400, "Missing authorization code.");
+	if (!code) return htmlError(400, "Missing authorization code. Start again from your MCP client.", headers);
 
 	const tokenRes = await fetch(new URL("/services/oauth2/token", env.SF_LOGIN_URL), {
 		method: "POST",
@@ -271,12 +196,12 @@ async function handleCallback(request: Request, env: AuthEnv, ctx: ExecutionCont
 			client_id: env.SF_LOGIN_CLIENT_ID,
 			client_secret: env.SF_LOGIN_CLIENT_SECRET,
 			redirect_uri: callbackUrl(request),
-			code_verifier: flow.codeVerifier,
+			code_verifier: data.verifier,
 		}),
 	});
 	if (!tokenRes.ok) {
 		console.error("Salesforce token exchange failed", tokenRes.status, await tokenRes.text());
-		return htmlError(502, "Sign-in failed while contacting Salesforce.");
+		return htmlError(502, "Sign-in failed while contacting Salesforce.", headers);
 	}
 	const { access_token } = (await tokenRes.json()) as { access_token: string };
 
@@ -295,33 +220,50 @@ async function handleCallback(request: Request, env: AuthEnv, ctx: ExecutionCont
 
 	if (!userRes.ok) {
 		console.error("Salesforce userinfo failed", userRes.status, await userRes.text());
-		return htmlError(502, "Sign-in failed while reading your Salesforce identity.");
+		return htmlError(502, "Sign-in failed while reading your Salesforce identity.", headers);
 	}
 	const info = (await userRes.json()) as SalesforceUserInfo;
 
 	// Only identities from this gateway's own Salesforce org are accepted.
 	if (info.organization_id !== env.SF_ORG_ID) {
 		console.warn("Rejected login from another org", info.organization_id);
-		return htmlError(403, "This Salesforce account belongs to a different organization.");
+		return clientError(original, "access_denied", "This Salesforce account belongs to a different organization.", headers);
 	}
 
 	const props: GatewayProps = { userId: info.user_id, username: info.preferred_username, email: info.email ?? null };
 	const { redirectTo } = await env.OAUTH_PROVIDER.completeAuthorization({
-		request: flow.oauthReq,
+		request: original,
 		userId: info.user_id,
 		metadata: { label: info.preferred_username },
 		scope: GATEWAY_SCOPES, // the gateway decides what's granted, not the client
 		props,
 	});
-	return redirect(redirectTo, [setCookie(request, FLOW_COOKIE, "", 0)]);
+	return found(headers, redirectTo);
 }
 
 // ---------- router (OAuthProvider's defaultHandler) ----------
 
 export async function handleAuth(request: Request, env: AuthEnv, ctx: ExecutionContext): Promise<Response> {
 	const { pathname } = new URL(request.url);
-	if (pathname === "/authorize" && request.method === "GET") return startAuthorize(request, env);
-	if (pathname === "/authorize" && request.method === "POST") return submitConsent(request, env);
-	if (pathname === "/callback" && request.method === "GET") return handleCallback(request, env, ctx);
-	return new Response("Not found", { status: 404 });
+	try {
+		if (pathname === "/authorize" && request.method === "GET") return await startAuthorize(request, env);
+		if (pathname === "/authorize" && request.method === "POST") return await submitConsent(request, env);
+		if (pathname === "/callback" && request.method === "GET") return await handleCallback(request, env, ctx);
+		return new Response("Not found", { status: 404 });
+	} catch (error) {
+		if (error instanceof AuthorizationError) {
+			// Redirect only when parseAuthRequest validated the client and its exact redirect URI.
+			if (error.redirectUri) {
+				const to = new URL(error.redirectUri);
+				to.searchParams.set("error", error.code);
+				to.searchParams.set("error_description", error.description);
+				if (error.state) to.searchParams.set("state", error.state);
+				if (error.issuer) to.searchParams.set("iss", error.issuer);
+				return Response.redirect(to.href, 302);
+			}
+			// Expired, already used, opened in another browser, or an untrusted client: render here.
+				return htmlError(400, error.description);
+		}
+		throw error; // a bug or an outage, not the user's doing: surface as a 500
+	}
 }

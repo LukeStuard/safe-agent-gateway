@@ -95,3 +95,19 @@ Controls verified: allowlisted inputs, row cap, output field allowlist, strict s
 - Lesson: re-run the tool after reconnecting before reading the audit log
 - Next: swap hand-rolled consent/state code for the library's built-in helpers; garbage/expired token test;
   Invoke-Mcp.ps1 token support; rate limiting; add_review_note with approval
+
+  ## Phase 3: consent refactor (2026-10-21)
+- Replaced hand-rolled consent, state, and cookie code with workers-oauth-provider 1.x helpers
+  (describeConsent, beginConsent, approveConsent, denyConsent, isConsentRemembered, beginUpstream, finishUpstream)
+- Gains: __Host- cookies, flow state encrypted in KV under a hashed key (the PKCE verifier was previously
+  stored in plaintext), remembered approvals bound to client + redirect URI + resource + scopes
+- Consent page shows client name, unverified-name notice (DCR), redirect host, local-app warning, scopes
+- Consent page content per MCP spec: PASS
+- Approve, Salesforce login, audit identity: PASS (__Host- cookies work on http://localhost in Chrome)
+- Remembered consent skips the page on reconnect: PASS
+- Deny returns access_denied to the client: PASS
+- Replay of a used consent handle from the same browser: 400, not started in this browser: PASS
+- Note: Back button cannot replay consent (no-cache headers force a fresh handle); replay was tested by
+  resending the captured POST from DevTools on the gateway's own origin
+- Lesson: check the installed library version's docs before writing code against it; the first
+  implementation was written from 0.x memory and hand-rolled what 1.x already provides
