@@ -63,6 +63,23 @@
   Worker; fixed separately
 - Also: Wrangler updated to 4.152.0 (separate commit)
 
+## Deployment: production on workers.dev (2026-10-22)
+- URL: https://safe-agent-gateway.lstua001.workers.dev (personal Cloudflare account, scoped API token)
+- GATEWAY_ORIGIN in wrangler.jsonc is the production URL; .dev.vars overrides it to http://localhost:8788
+  for wrangler dev (verified: local metadata still reports localhost)
+- Remote D1 migration applied; production audit log starts empty
+- Secrets uploaded with wrangler secret bulk via stdin, piped from Credential Manager (never written to disk).
+  Production has its own freshly generated COOKIE_ENCRYPTION_KEY
+- Salesforce login app: production /callback added alongside localhost
+- Invoke-Mcp.ps1: GATEWAY_TARGET=prod switches target; one client registration per host; loading the script
+  clears the session so tokens never cross environments
+- Live regression: Connect-Gateway sign-in, no token 401, garbage token 401, program summary 6 rows,
+  pending reviews 10 truncated, APP-00065 untrusted notes, limit=1000 rejected, unknown tool rejected,
+  Salesforce token passthrough 401: PASS
+- Production audit: 8 rows for 8 calls, correct identities: PASS
+- Observed: production calls take about 0.4 to 1s versus about 2s locally, consistent with the Windows
+  localhost IPv6 fallback suspected earlier
+
 ### Cautions
 - Global default org is sandboxCopy (CIAM). Always run project commands from this folder so gatewayDev is used.
 - Never commit .sfdx/ or .sf/ (auth info). Run git status before the first push.

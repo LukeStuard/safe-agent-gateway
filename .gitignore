@@ -52,4 +52,4 @@ $RECYCLE.BIN/
 *-failed-records.csv
 
 # Safe Agent Gateway test client registration (machine-specific)
-scripts/.gateway-client.json
+scripts/.gateway-client*.json

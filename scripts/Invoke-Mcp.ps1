@@ -11,9 +11,15 @@
 # PKCE S256, a loopback redirect on 127.0.0.1, and the resource indicator (RFC 8707). Only the client ID
 # is saved to disk. The refresh token lives in this PowerShell session and nowhere else.
 
-$GatewayOrigin       = "http://localhost:8788"
+# Target: local dev by default. For production: $env:GATEWAY_TARGET = "prod", then dot-source this file again.
+$GatewayOrigin = if ($env:GATEWAY_TARGET -eq "prod") { "https://safe-agent-gateway.lstua001.workers.dev" } else { "http://localhost:8788" }
 $GatewayLoopbackPort = 33418
-$GatewayClientFile   = Join-Path $PSScriptRoot ".gateway-client.json"
+# One client registration per gateway host, so switching targets never overwrites the other's.
+$GatewayClientFile = Join-Path $PSScriptRoot ".gateway-client.$(([uri]$GatewayOrigin).Host).json"
+# Loading the script starts a fresh session, so a dev token is never sent to production or the reverse.
+$env:GATEWAY_TOKEN = $null
+$global:GatewaySession = $null
+Write-Host "Gateway target: $GatewayOrigin (run Connect-Gateway to sign in)"
 
 function ConvertTo-Base64Url([byte[]]$Bytes) {
     [Convert]::ToBase64String($Bytes).TrimEnd('=').Replace('+', '-').Replace('/', '_')
