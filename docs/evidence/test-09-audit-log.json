@@ -1,0 +1,1124 @@
+[
+  {
+    "results": [
+      {
+        "id": 9,
+        "ts": "2026-10-22T22:50:24.876Z",
+        "identity": "unauthenticated",
+        "tool": "(initialize)",
+        "arguments": "null",
+        "decision": "deny",
+        "reason": "HTTP 401: no error code (no token)",
+        "result_summary": null
+      },
+      {
+        "id": 10,
+        "ts": "2026-10-22T22:50:36.291Z",
+        "identity": "unauthenticated",
+        "tool": "(initialize)",
+        "arguments": "null",
+        "decision": "deny",
+        "reason": "HTTP 401: no error code (no token)",
+        "result_summary": null
+      },
+      {
+        "id": 11,
+        "ts": "2026-10-22T23:00:18.571Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "get_application_status",
+        "arguments": "{\"applicationId\":\"APP-00065\"}",
+        "decision": "allow",
+        "reason": null,
+        "result_summary": "found=true"
+      },
+      {
+        "id": 12,
+        "ts": "2026-10-22T23:02:30.141Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "list_pending_reviews",
+        "arguments": "{\"limit\":25}",
+        "decision": "allow",
+        "reason": null,
+        "result_summary": "rows=25 truncated=true"
+      },
+      {
+        "id": 13,
+        "ts": "2026-10-22T23:02:35.783Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "list_pending_reviews",
+        "arguments": "{\"limit\":25,\"program\":\"MBA\"}",
+        "decision": "allow",
+        "reason": null,
+        "result_summary": "rows=21 truncated=false"
+      },
+      {
+        "id": 14,
+        "ts": "2026-10-22T23:02:36.595Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "list_pending_reviews",
+        "arguments": "{\"limit\":25,\"program\":\"MS Management\"}",
+        "decision": "allow",
+        "reason": null,
+        "result_summary": "rows=24 truncated=false"
+      },
+      {
+        "id": 15,
+        "ts": "2026-10-22T23:02:37.161Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "list_pending_reviews",
+        "arguments": "{\"limit\":25,\"program\":\"MS Data Analytics\"}",
+        "decision": "allow",
+        "reason": null,
+        "result_summary": "rows=25 truncated=true"
+      },
+      {
+        "id": 16,
+        "ts": "2026-10-22T23:02:37.886Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "list_pending_reviews",
+        "arguments": "{\"limit\":25,\"program\":\"Certificate in Leadership\"}",
+        "decision": "allow",
+        "reason": null,
+        "result_summary": "rows=25 truncated=true"
+      },
+      {
+        "id": 17,
+        "ts": "2026-10-22T23:02:42.709Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "list_pending_reviews",
+        "arguments": "{\"limit\":25,\"program\":\"MS Data Analytics\",\"status\":\"Submitted\"}",
+        "decision": "allow",
+        "reason": null,
+        "result_summary": "rows=9 truncated=false"
+      },
+      {
+        "id": 18,
+        "ts": "2026-10-22T23:02:43.517Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "list_pending_reviews",
+        "arguments": "{\"limit\":25,\"program\":\"MS Data Analytics\",\"status\":\"In Review\"}",
+        "decision": "allow",
+        "reason": null,
+        "result_summary": "rows=18 truncated=false"
+      },
+      {
+        "id": 19,
+        "ts": "2026-10-22T23:02:44.189Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "list_pending_reviews",
+        "arguments": "{\"limit\":25,\"program\":\"Certificate in Leadership\",\"status\":\"Submitted\"}",
+        "decision": "allow",
+        "reason": null,
+        "result_summary": "rows=12 truncated=false"
+      },
+      {
+        "id": 20,
+        "ts": "2026-10-22T23:02:44.687Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "list_pending_reviews",
+        "arguments": "{\"limit\":25,\"program\":\"Certificate in Leadership\",\"status\":\"In Review\"}",
+        "decision": "allow",
+        "reason": null,
+        "result_summary": "rows=14 truncated=false"
+      },
+      {
+        "id": 21,
+        "ts": "2026-10-22T23:09:39.506Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "get_application_status",
+        "arguments": "{\"applicationId\":\"APP-00065\"}",
+        "decision": "allow",
+        "reason": null,
+        "result_summary": "found=true"
+      },
+      {
+        "id": 22,
+        "ts": "2026-10-22T23:18:57.908Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "add_review_note",
+        "arguments": "{\"applicationId\":\"APP-00065\",\"note\":\"[redacted: 42 chars]\"}",
+        "decision": "allow",
+        "reason": null,
+        "result_summary": "request=RNR-00003 status=pending_approval"
+      },
+      {
+        "id": 23,
+        "ts": "2026-10-22T23:26:16.216Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "get_application_status",
+        "arguments": "{\"applicationId\":\"APP-00065\"}",
+        "decision": "allow",
+        "reason": null,
+        "result_summary": "found=true"
+      },
+      {
+        "id": 24,
+        "ts": "2026-10-22T23:29:46.584Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "get_application_status",
+        "arguments": "{\"applicationId\":\"APP-00001\"}",
+        "decision": "allow",
+        "reason": null,
+        "result_summary": "found=true"
+      },
+      {
+        "id": 25,
+        "ts": "2026-10-22T23:29:47.626Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "get_application_status",
+        "arguments": "{\"applicationId\":\"APP-00002\"}",
+        "decision": "allow",
+        "reason": null,
+        "result_summary": "found=true"
+      },
+      {
+        "id": 26,
+        "ts": "2026-10-22T23:29:48.517Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "get_application_status",
+        "arguments": "{\"applicationId\":\"APP-00003\"}",
+        "decision": "allow",
+        "reason": null,
+        "result_summary": "found=true"
+      },
+      {
+        "id": 27,
+        "ts": "2026-10-22T23:29:49.309Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "get_application_status",
+        "arguments": "{\"applicationId\":\"APP-00004\"}",
+        "decision": "allow",
+        "reason": null,
+        "result_summary": "found=true"
+      },
+      {
+        "id": 28,
+        "ts": "2026-10-22T23:29:50.030Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "get_application_status",
+        "arguments": "{\"applicationId\":\"APP-00005\"}",
+        "decision": "allow",
+        "reason": null,
+        "result_summary": "found=true"
+      },
+      {
+        "id": 29,
+        "ts": "2026-10-22T23:29:50.837Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "get_application_status",
+        "arguments": "{\"applicationId\":\"APP-00006\"}",
+        "decision": "allow",
+        "reason": null,
+        "result_summary": "found=true"
+      },
+      {
+        "id": 30,
+        "ts": "2026-10-22T23:29:51.698Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "get_application_status",
+        "arguments": "{\"applicationId\":\"APP-00007\"}",
+        "decision": "allow",
+        "reason": null,
+        "result_summary": "found=true"
+      },
+      {
+        "id": 31,
+        "ts": "2026-10-22T23:29:52.582Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "get_application_status",
+        "arguments": "{\"applicationId\":\"APP-00008\"}",
+        "decision": "allow",
+        "reason": null,
+        "result_summary": "found=true"
+      },
+      {
+        "id": 32,
+        "ts": "2026-10-22T23:29:53.375Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "get_application_status",
+        "arguments": "{\"applicationId\":\"APP-00009\"}",
+        "decision": "allow",
+        "reason": null,
+        "result_summary": "found=true"
+      },
+      {
+        "id": 33,
+        "ts": "2026-10-22T23:29:53.879Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "get_application_status",
+        "arguments": "{\"applicationId\":\"APP-00010\"}",
+        "decision": "allow",
+        "reason": null,
+        "result_summary": "found=false"
+      },
+      {
+        "id": 34,
+        "ts": "2026-10-22T23:29:54.373Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "get_application_status",
+        "arguments": "{\"applicationId\":\"APP-00011\"}",
+        "decision": "allow",
+        "reason": null,
+        "result_summary": "found=true"
+      },
+      {
+        "id": 35,
+        "ts": "2026-10-22T23:29:55.134Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "get_application_status",
+        "arguments": "{\"applicationId\":\"APP-00012\"}",
+        "decision": "allow",
+        "reason": null,
+        "result_summary": "found=true"
+      },
+      {
+        "id": 36,
+        "ts": "2026-10-22T23:29:55.616Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "get_application_status",
+        "arguments": "{\"applicationId\":\"APP-00013\"}",
+        "decision": "allow",
+        "reason": null,
+        "result_summary": "found=true"
+      },
+      {
+        "id": 37,
+        "ts": "2026-10-22T23:29:56.217Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "get_application_status",
+        "arguments": "{\"applicationId\":\"APP-00014\"}",
+        "decision": "allow",
+        "reason": null,
+        "result_summary": "found=true"
+      },
+      {
+        "id": 38,
+        "ts": "2026-10-22T23:29:56.603Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "get_application_status",
+        "arguments": "{\"applicationId\":\"APP-00015\"}",
+        "decision": "allow",
+        "reason": null,
+        "result_summary": "found=true"
+      },
+      {
+        "id": 39,
+        "ts": "2026-10-22T23:33:07.846Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "get_program_summary",
+        "arguments": "{}",
+        "decision": "allow",
+        "reason": null,
+        "result_summary": "groups=16"
+      },
+      {
+        "id": 40,
+        "ts": "2026-10-22T23:34:00.902Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "get_program_summary",
+        "arguments": "{}",
+        "decision": "allow",
+        "reason": null,
+        "result_summary": "groups=16"
+      },
+      {
+        "id": 41,
+        "ts": "2026-10-22T23:34:01.012Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "get_program_summary",
+        "arguments": "{}",
+        "decision": "allow",
+        "reason": null,
+        "result_summary": "groups=16"
+      },
+      {
+        "id": 42,
+        "ts": "2026-10-22T23:34:01.065Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "get_program_summary",
+        "arguments": "{}",
+        "decision": "allow",
+        "reason": null,
+        "result_summary": "groups=16"
+      },
+      {
+        "id": 43,
+        "ts": "2026-10-22T23:34:01.093Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "get_program_summary",
+        "arguments": "{}",
+        "decision": "allow",
+        "reason": null,
+        "result_summary": "groups=16"
+      },
+      {
+        "id": 44,
+        "ts": "2026-10-22T23:34:01.093Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "get_program_summary",
+        "arguments": "{}",
+        "decision": "allow",
+        "reason": null,
+        "result_summary": "groups=16"
+      },
+      {
+        "id": 45,
+        "ts": "2026-10-22T23:34:01.121Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "get_program_summary",
+        "arguments": "{}",
+        "decision": "allow",
+        "reason": null,
+        "result_summary": "groups=16"
+      },
+      {
+        "id": 46,
+        "ts": "2026-10-22T23:34:01.121Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "get_program_summary",
+        "arguments": "{}",
+        "decision": "allow",
+        "reason": null,
+        "result_summary": "groups=16"
+      },
+      {
+        "id": 47,
+        "ts": "2026-10-22T23:34:01.151Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "get_program_summary",
+        "arguments": "{}",
+        "decision": "allow",
+        "reason": null,
+        "result_summary": "groups=16"
+      },
+      {
+        "id": 48,
+        "ts": "2026-10-22T23:34:01.151Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "get_program_summary",
+        "arguments": "{}",
+        "decision": "allow",
+        "reason": null,
+        "result_summary": "groups=16"
+      },
+      {
+        "id": 49,
+        "ts": "2026-10-22T23:34:01.179Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "get_program_summary",
+        "arguments": "{}",
+        "decision": "allow",
+        "reason": null,
+        "result_summary": "groups=16"
+      },
+      {
+        "id": 50,
+        "ts": "2026-10-22T23:34:01.179Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "get_program_summary",
+        "arguments": "{}",
+        "decision": "allow",
+        "reason": null,
+        "result_summary": "groups=16"
+      },
+      {
+        "id": 51,
+        "ts": "2026-10-22T23:34:01.179Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "get_program_summary",
+        "arguments": "{}",
+        "decision": "allow",
+        "reason": null,
+        "result_summary": "groups=16"
+      },
+      {
+        "id": 52,
+        "ts": "2026-10-22T23:34:01.179Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "get_program_summary",
+        "arguments": "{}",
+        "decision": "allow",
+        "reason": null,
+        "result_summary": "groups=16"
+      },
+      {
+        "id": 53,
+        "ts": "2026-10-22T23:34:01.239Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "get_program_summary",
+        "arguments": "{}",
+        "decision": "allow",
+        "reason": null,
+        "result_summary": "groups=16"
+      },
+      {
+        "id": 54,
+        "ts": "2026-10-22T23:34:01.283Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "get_program_summary",
+        "arguments": "{}",
+        "decision": "allow",
+        "reason": null,
+        "result_summary": "groups=16"
+      },
+      {
+        "id": 55,
+        "ts": "2026-10-22T23:34:01.318Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "get_program_summary",
+        "arguments": "{}",
+        "decision": "allow",
+        "reason": null,
+        "result_summary": "groups=16"
+      },
+      {
+        "id": 56,
+        "ts": "2026-10-22T23:34:01.347Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "get_program_summary",
+        "arguments": "{}",
+        "decision": "allow",
+        "reason": null,
+        "result_summary": "groups=16"
+      },
+      {
+        "id": 57,
+        "ts": "2026-10-22T23:34:01.380Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "get_program_summary",
+        "arguments": "{}",
+        "decision": "allow",
+        "reason": null,
+        "result_summary": "groups=16"
+      },
+      {
+        "id": 58,
+        "ts": "2026-10-22T23:34:01.408Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "get_program_summary",
+        "arguments": "{}",
+        "decision": "allow",
+        "reason": null,
+        "result_summary": "groups=16"
+      },
+      {
+        "id": 59,
+        "ts": "2026-10-22T23:34:01.408Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "get_program_summary",
+        "arguments": "{}",
+        "decision": "allow",
+        "reason": null,
+        "result_summary": "groups=16"
+      },
+      {
+        "id": 60,
+        "ts": "2026-10-22T23:34:01.408Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "get_program_summary",
+        "arguments": "{}",
+        "decision": "allow",
+        "reason": null,
+        "result_summary": "groups=16"
+      },
+      {
+        "id": 61,
+        "ts": "2026-10-22T23:34:01.408Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "get_program_summary",
+        "arguments": "{}",
+        "decision": "allow",
+        "reason": null,
+        "result_summary": "groups=16"
+      },
+      {
+        "id": 62,
+        "ts": "2026-10-22T23:34:01.452Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "get_program_summary",
+        "arguments": "{}",
+        "decision": "allow",
+        "reason": null,
+        "result_summary": "groups=16"
+      },
+      {
+        "id": 63,
+        "ts": "2026-10-22T23:34:01.481Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "get_program_summary",
+        "arguments": "{}",
+        "decision": "allow",
+        "reason": null,
+        "result_summary": "groups=16"
+      },
+      {
+        "id": 64,
+        "ts": "2026-10-22T23:34:01.509Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "get_program_summary",
+        "arguments": "{}",
+        "decision": "allow",
+        "reason": null,
+        "result_summary": "groups=16"
+      },
+      {
+        "id": 65,
+        "ts": "2026-10-22T23:34:01.509Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "get_program_summary",
+        "arguments": "{}",
+        "decision": "allow",
+        "reason": null,
+        "result_summary": "groups=16"
+      },
+      {
+        "id": 66,
+        "ts": "2026-10-22T23:34:01.509Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "get_program_summary",
+        "arguments": "{}",
+        "decision": "allow",
+        "reason": null,
+        "result_summary": "groups=16"
+      },
+      {
+        "id": 67,
+        "ts": "2026-10-22T23:34:01.540Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "get_program_summary",
+        "arguments": "{}",
+        "decision": "allow",
+        "reason": null,
+        "result_summary": "groups=16"
+      },
+      {
+        "id": 68,
+        "ts": "2026-10-22T23:34:01.540Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "get_program_summary",
+        "arguments": "{}",
+        "decision": "allow",
+        "reason": null,
+        "result_summary": "groups=16"
+      },
+      {
+        "id": 69,
+        "ts": "2026-10-22T23:34:01.583Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "get_program_summary",
+        "arguments": "{}",
+        "decision": "allow",
+        "reason": null,
+        "result_summary": "groups=16"
+      },
+      {
+        "id": 70,
+        "ts": "2026-10-22T23:49:23.341Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "get_program_summary",
+        "arguments": "{}",
+        "decision": "deny",
+        "reason": "Rate limit exceeded (10 tool calls per rolling 60 seconds per user)",
+        "result_summary": null
+      },
+      {
+        "id": 71,
+        "ts": "2026-10-22T23:49:23.341Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "get_program_summary",
+        "arguments": "{}",
+        "decision": "deny",
+        "reason": "Rate limit exceeded (10 tool calls per rolling 60 seconds per user)",
+        "result_summary": null
+      },
+      {
+        "id": 72,
+        "ts": "2026-10-22T23:49:23.341Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "get_program_summary",
+        "arguments": "{}",
+        "decision": "deny",
+        "reason": "Rate limit exceeded (10 tool calls per rolling 60 seconds per user)",
+        "result_summary": null
+      },
+      {
+        "id": 73,
+        "ts": "2026-10-22T23:49:23.341Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "get_program_summary",
+        "arguments": "{}",
+        "decision": "deny",
+        "reason": "Rate limit exceeded (10 tool calls per rolling 60 seconds per user)",
+        "result_summary": null
+      },
+      {
+        "id": 74,
+        "ts": "2026-10-22T23:49:23.341Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "get_program_summary",
+        "arguments": "{}",
+        "decision": "deny",
+        "reason": "Rate limit exceeded (10 tool calls per rolling 60 seconds per user)",
+        "result_summary": null
+      },
+      {
+        "id": 75,
+        "ts": "2026-10-22T23:49:23.341Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "get_program_summary",
+        "arguments": "{}",
+        "decision": "deny",
+        "reason": "Rate limit exceeded (10 tool calls per rolling 60 seconds per user)",
+        "result_summary": null
+      },
+      {
+        "id": 76,
+        "ts": "2026-10-22T23:49:23.341Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "get_program_summary",
+        "arguments": "{}",
+        "decision": "deny",
+        "reason": "Rate limit exceeded (10 tool calls per rolling 60 seconds per user)",
+        "result_summary": null
+      },
+      {
+        "id": 77,
+        "ts": "2026-10-22T23:49:23.341Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "get_program_summary",
+        "arguments": "{}",
+        "decision": "deny",
+        "reason": "Rate limit exceeded (10 tool calls per rolling 60 seconds per user)",
+        "result_summary": null
+      },
+      {
+        "id": 78,
+        "ts": "2026-10-22T23:49:23.341Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "get_program_summary",
+        "arguments": "{}",
+        "decision": "deny",
+        "reason": "Rate limit exceeded (10 tool calls per rolling 60 seconds per user)",
+        "result_summary": null
+      },
+      {
+        "id": 79,
+        "ts": "2026-10-22T23:49:23.341Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "get_program_summary",
+        "arguments": "{}",
+        "decision": "deny",
+        "reason": "Rate limit exceeded (10 tool calls per rolling 60 seconds per user)",
+        "result_summary": null
+      },
+      {
+        "id": 80,
+        "ts": "2026-10-22T23:49:23.341Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "get_program_summary",
+        "arguments": "{}",
+        "decision": "deny",
+        "reason": "Rate limit exceeded (10 tool calls per rolling 60 seconds per user)",
+        "result_summary": null
+      },
+      {
+        "id": 81,
+        "ts": "2026-10-22T23:49:23.341Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "get_program_summary",
+        "arguments": "{}",
+        "decision": "deny",
+        "reason": "Rate limit exceeded (10 tool calls per rolling 60 seconds per user)",
+        "result_summary": null
+      },
+      {
+        "id": 82,
+        "ts": "2026-10-22T23:49:23.341Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "get_program_summary",
+        "arguments": "{}",
+        "decision": "deny",
+        "reason": "Rate limit exceeded (10 tool calls per rolling 60 seconds per user)",
+        "result_summary": null
+      },
+      {
+        "id": 83,
+        "ts": "2026-10-22T23:49:23.341Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "get_program_summary",
+        "arguments": "{}",
+        "decision": "deny",
+        "reason": "Rate limit exceeded (10 tool calls per rolling 60 seconds per user)",
+        "result_summary": null
+      },
+      {
+        "id": 84,
+        "ts": "2026-10-22T23:49:23.341Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "get_program_summary",
+        "arguments": "{}",
+        "decision": "deny",
+        "reason": "Rate limit exceeded (10 tool calls per rolling 60 seconds per user)",
+        "result_summary": null
+      },
+      {
+        "id": 85,
+        "ts": "2026-10-22T23:49:23.341Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "get_program_summary",
+        "arguments": "{}",
+        "decision": "deny",
+        "reason": "Rate limit exceeded (10 tool calls per rolling 60 seconds per user)",
+        "result_summary": null
+      },
+      {
+        "id": 86,
+        "ts": "2026-10-22T23:49:23.341Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "get_program_summary",
+        "arguments": "{}",
+        "decision": "deny",
+        "reason": "Rate limit exceeded (10 tool calls per rolling 60 seconds per user)",
+        "result_summary": null
+      },
+      {
+        "id": 87,
+        "ts": "2026-10-22T23:49:23.341Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "get_program_summary",
+        "arguments": "{}",
+        "decision": "deny",
+        "reason": "Rate limit exceeded (10 tool calls per rolling 60 seconds per user)",
+        "result_summary": null
+      },
+      {
+        "id": 88,
+        "ts": "2026-10-22T23:49:23.341Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "get_program_summary",
+        "arguments": "{}",
+        "decision": "deny",
+        "reason": "Rate limit exceeded (10 tool calls per rolling 60 seconds per user)",
+        "result_summary": null
+      },
+      {
+        "id": 89,
+        "ts": "2026-10-22T23:49:23.341Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "get_program_summary",
+        "arguments": "{}",
+        "decision": "deny",
+        "reason": "Rate limit exceeded (10 tool calls per rolling 60 seconds per user)",
+        "result_summary": null
+      },
+      {
+        "id": 90,
+        "ts": "2026-10-22T23:49:23.792Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "get_program_summary",
+        "arguments": "{}",
+        "decision": "allow",
+        "reason": null,
+        "result_summary": "groups=16"
+      },
+      {
+        "id": 91,
+        "ts": "2026-10-22T23:49:23.839Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "get_program_summary",
+        "arguments": "{}",
+        "decision": "allow",
+        "reason": null,
+        "result_summary": "groups=16"
+      },
+      {
+        "id": 92,
+        "ts": "2026-10-22T23:49:23.903Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "get_program_summary",
+        "arguments": "{}",
+        "decision": "allow",
+        "reason": null,
+        "result_summary": "groups=16"
+      },
+      {
+        "id": 93,
+        "ts": "2026-10-22T23:49:23.931Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "get_program_summary",
+        "arguments": "{}",
+        "decision": "allow",
+        "reason": null,
+        "result_summary": "groups=16"
+      },
+      {
+        "id": 94,
+        "ts": "2026-10-22T23:49:23.975Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "get_program_summary",
+        "arguments": "{}",
+        "decision": "allow",
+        "reason": null,
+        "result_summary": "groups=16"
+      },
+      {
+        "id": 95,
+        "ts": "2026-10-22T23:49:24.022Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "get_program_summary",
+        "arguments": "{}",
+        "decision": "allow",
+        "reason": null,
+        "result_summary": "groups=16"
+      },
+      {
+        "id": 96,
+        "ts": "2026-10-22T23:49:24.050Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "get_program_summary",
+        "arguments": "{}",
+        "decision": "allow",
+        "reason": null,
+        "result_summary": "groups=16"
+      },
+      {
+        "id": 97,
+        "ts": "2026-10-22T23:49:24.050Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "get_program_summary",
+        "arguments": "{}",
+        "decision": "allow",
+        "reason": null,
+        "result_summary": "groups=16"
+      },
+      {
+        "id": 98,
+        "ts": "2026-10-22T23:49:24.094Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "get_program_summary",
+        "arguments": "{}",
+        "decision": "allow",
+        "reason": null,
+        "result_summary": "groups=16"
+      },
+      {
+        "id": 99,
+        "ts": "2026-10-22T23:49:24.252Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "get_program_summary",
+        "arguments": "{}",
+        "decision": "allow",
+        "reason": null,
+        "result_summary": "groups=16"
+      },
+      {
+        "id": 100,
+        "ts": "2026-10-22T23:52:03.761Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "get_application_status",
+        "arguments": "{\"applicationId\":\"APP-00001\"}",
+        "decision": "allow",
+        "reason": null,
+        "result_summary": "found=true"
+      },
+      {
+        "id": 101,
+        "ts": "2026-10-22T23:52:04.451Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "get_application_status",
+        "arguments": "{\"applicationId\":\"APP-00002\"}",
+        "decision": "allow",
+        "reason": null,
+        "result_summary": "found=true"
+      },
+      {
+        "id": 102,
+        "ts": "2026-10-22T23:52:05.194Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "get_application_status",
+        "arguments": "{\"applicationId\":\"APP-00003\"}",
+        "decision": "allow",
+        "reason": null,
+        "result_summary": "found=true"
+      },
+      {
+        "id": 103,
+        "ts": "2026-10-22T23:52:06.408Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "get_application_status",
+        "arguments": "{\"applicationId\":\"APP-00004\"}",
+        "decision": "allow",
+        "reason": null,
+        "result_summary": "found=true"
+      },
+      {
+        "id": 104,
+        "ts": "2026-10-22T23:52:07.415Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "get_application_status",
+        "arguments": "{\"applicationId\":\"APP-00005\"}",
+        "decision": "allow",
+        "reason": null,
+        "result_summary": "found=true"
+      },
+      {
+        "id": 105,
+        "ts": "2026-10-22T23:52:07.903Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "get_application_status",
+        "arguments": "{\"applicationId\":\"APP-00006\"}",
+        "decision": "allow",
+        "reason": null,
+        "result_summary": "found=true"
+      },
+      {
+        "id": 106,
+        "ts": "2026-10-22T23:52:08.655Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "get_application_status",
+        "arguments": "{\"applicationId\":\"APP-00007\"}",
+        "decision": "allow",
+        "reason": null,
+        "result_summary": "found=true"
+      },
+      {
+        "id": 107,
+        "ts": "2026-10-22T23:52:09.615Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "get_application_status",
+        "arguments": "{\"applicationId\":\"APP-00008\"}",
+        "decision": "allow",
+        "reason": null,
+        "result_summary": "found=true"
+      },
+      {
+        "id": 108,
+        "ts": "2026-10-22T23:52:10.565Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "get_application_status",
+        "arguments": "{\"applicationId\":\"APP-00009\"}",
+        "decision": "allow",
+        "reason": null,
+        "result_summary": "found=true"
+      },
+      {
+        "id": 109,
+        "ts": "2026-10-22T23:52:11.085Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "get_application_status",
+        "arguments": "{\"applicationId\":\"APP-00010\"}",
+        "decision": "allow",
+        "reason": null,
+        "result_summary": "found=false"
+      },
+      {
+        "id": 110,
+        "ts": "2026-10-22T23:52:11.519Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "get_application_status",
+        "arguments": "{\"applicationId\":\"APP-00011\"}",
+        "decision": "deny",
+        "reason": "Rate limit exceeded (10 tool calls per rolling 60 seconds per user)",
+        "result_summary": null
+      },
+      {
+        "id": 111,
+        "ts": "2026-10-22T23:52:11.909Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "get_application_status",
+        "arguments": "{\"applicationId\":\"APP-00012\"}",
+        "decision": "deny",
+        "reason": "Rate limit exceeded (10 tool calls per rolling 60 seconds per user)",
+        "result_summary": null
+      },
+      {
+        "id": 112,
+        "ts": "2026-10-22T23:52:12.520Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "get_application_status",
+        "arguments": "{\"applicationId\":\"APP-00013\"}",
+        "decision": "deny",
+        "reason": "Rate limit exceeded (10 tool calls per rolling 60 seconds per user)",
+        "result_summary": null
+      },
+      {
+        "id": 113,
+        "ts": "2026-10-22T23:52:13.030Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "get_application_status",
+        "arguments": "{\"applicationId\":\"APP-00014\"}",
+        "decision": "deny",
+        "reason": "Rate limit exceeded (10 tool calls per rolling 60 seconds per user)",
+        "result_summary": null
+      },
+      {
+        "id": 114,
+        "ts": "2026-10-22T23:52:13.520Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "get_application_status",
+        "arguments": "{\"applicationId\":\"APP-00015\"}",
+        "decision": "deny",
+        "reason": "Rate limit exceeded (10 tool calls per rolling 60 seconds per user)",
+        "result_summary": null
+      },
+      {
+        "id": 115,
+        "ts": "2026-10-22T23:52:16.447Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "get_application_status",
+        "arguments": "{\"applicationId\":\"APP-00011\"}",
+        "decision": "deny",
+        "reason": "Rate limit exceeded (10 tool calls per rolling 60 seconds per user)",
+        "result_summary": null
+      },
+      {
+        "id": 116,
+        "ts": "2026-10-22T23:57:06.542Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "get_program_summary",
+        "arguments": "{\"groupBy\":[\"program\"]}",
+        "decision": "error",
+        "reason": "The Salesforce request failed. No data was returned.",
+        "result_summary": null
+      },
+      {
+        "id": 117,
+        "ts": "2026-10-22T23:57:13.687Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "get_program_summary",
+        "arguments": "{\"groupBy\":[\"program\"]}",
+        "decision": "error",
+        "reason": "The Salesforce request failed. No data was returned.",
+        "result_summary": null
+      },
+      {
+        "id": 118,
+        "ts": "2026-10-22T23:58:58.872Z",
+        "identity": "luke.stuard.49c578d3f6e7@agentforce.com",
+        "tool": "get_program_summary",
+        "arguments": "{\"groupBy\":[\"program\"]}",
+        "decision": "allow",
+        "reason": null,
+        "result_summary": "groups=4"
+      }
+    ],
+    "success": true,
+    "meta": {
+      "served_by": "v3-prod",
+      "served_by_region": "WNAM",
+      "served_by_colo": "SJC",
+      "served_by_primary": true,
+      "timings": {
+        "sql_duration_ms": 2.7527
+      },
+      "duration": 2.7527,
+      "changes": 0,
+      "last_row_id": 0,
+      "changed_db": false,
+      "size_after": 73728,
+      "rows_read": 110,
+      "rows_written": 0,
+      "total_attempts": 1
+    }
+  }
+]
