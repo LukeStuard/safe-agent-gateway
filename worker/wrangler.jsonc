@@ -11,7 +11,7 @@
 	"vars": {
 		"SF_LOGIN_URL": "https://orgfarm-5ea30c60fa-dev-ed.develop.my.salesforce.com",
 		"SF_API_VERSION": "v68.0",
-		"GATEWAY_ORIGIN": "http://localhost:8788"
+		"GATEWAY_ORIGIN": "https://safe-agent-gateway.lstua001.workers.dev"
 	},
 	"compatibility_flags": [
 		"nodejs_compat"
@@ -34,17 +34,19 @@
 		}
 	],
 		"ratelimits": [
-		{
-			"name": "TOOL_RATE_LIMITER",
-			"namespace_id": "1001",
-			"simple": { "limit": 10, "period": 60 }
-		},
+	
 		{
 			"name": "IP_RATE_LIMITER",
 			"namespace_id": "1002",
 			"simple": { "limit": 60, "period": 60 }
 		}
 	],
+		"durable_objects": {
+		"bindings": [{ "name": "USER_QUOTA", "class_name": "UserQuota" }]
+	},
+	"exports": {
+		"UserQuota": { "type": "durable-object", "storage": "sqlite" }
+	},
 	"dev": {
 		"port": 8788
 	}

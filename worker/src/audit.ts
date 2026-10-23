@@ -4,18 +4,18 @@
 // Fails closed: if the audit write for a served call fails, the caller gets an error instead of the
 // result. withRejectionAudit wraps the OAuth provider so refused tokens are logged too.
 import type { GatewayProps } from "./auth-handler";
+import { TOOL_CALL_LIMIT, TOOL_CALL_WINDOW_MS, type UserQuota } from "./quota";
 
 export interface AuditEnv {
 	AUDIT_DB: D1Database;
-	TOOL_RATE_LIMITER: RateLimit;
+	USER_QUOTA: DurableObjectNamespace<UserQuota>;
 }
 
 type Handler<E> = (request: Request, env: E, ctx: ExecutionContext) => Promise<Response>;
 type Decision = "allow" | "deny" | "error";
 const MAX_ARGS_CHARS = 1000;
 const SALESFORCE_FAILURE = "The Salesforce request failed";
-const TOOL_LIMIT_DESCRIPTION = "10 tool calls per 60 seconds per user"; // keep in sync with wrangler.jsonc
-const RETRY_AFTER_SECONDS = "60";
+const TOOL_LIMIT_DESCRIPTION = `${TOOL_CALL_LIMIT} tool calls per rolling ${TOOL_CALL_WINDOW_MS / 1000} seconds per user`;
 
 interface AuditRow {
 	identity: string;
@@ -59,27 +59,18 @@ async function writeAudit(env: AuditEnv, row: AuditRow): Promise<void> {
 }
 
 function rpcError(id: unknown, code: number, message: string, status = 200) {
-	return new Response(
-		JSON.stringify({ jsonrpc: "2.0", id: id ?? null, error: { code, message } }),
-		{
-			status,
-			headers: { "Content-Type": "application/json" },
-		},
-	);
+	return new Response(JSON.stringify({ jsonrpc: "2.0", id: id ?? null, error: { code, message } }), {
+		status,
+		headers: { "Content-Type": "application/json" },
+	});
 }
 
-function parseToolCall(
-	text: string,
-): { id: unknown; tool: string; args: unknown } | "batch" | null {
+function parseToolCall(text: string): { id: unknown; tool: string; args: unknown } | "batch" | null {
 	try {
 		const msg = JSON.parse(text);
 		if (Array.isArray(msg)) return "batch";
 		if (msg?.method !== "tools/call") return null;
-		return {
-			id: msg.id ?? null,
-			tool: String(msg.params?.name ?? ""),
-			args: msg.params?.arguments ?? {},
-		};
+		return { id: msg.id ?? null, tool: String(msg.params?.name ?? ""), args: msg.params?.arguments ?? {} };
 	} catch {
 		return null;
 	}
@@ -119,11 +110,7 @@ function summarize(text: string): string {
 function classify(msg: any): { decision: Decision; reason: string | null; summary: string | null } {
 	if (!msg) return { decision: "error", reason: "Unparseable response", summary: null };
 	if (msg.error) {
-		return {
-			decision: "deny",
-			reason: `JSON-RPC ${msg.error.code}: ${String(msg.error.message).slice(0, 300)}`,
-			summary: null,
-		};
+		return { decision: "deny", reason: `JSON-RPC ${msg.error.code}: ${String(msg.error.message).slice(0, 300)}`, summary: null };
 	}
 	const result = msg.result ?? {};
 	const text: string = result.content?.[0]?.text ?? "";
@@ -146,23 +133,41 @@ export function withAudit<E extends AuditEnv>(handle: Handler<E>): Handler<E> {
 		const call = parseToolCall(await request.clone().text());
 
 		// Batches could hide tool calls from the audit layer, so refuse them outright.
-		if (call === "batch")
-			return rpcError(null, -32600, "Batch requests are not supported.", 400);
+		if (call === "batch") return rpcError(null, -32600, "Batch requests are not supported.", 400);
 
-		// Per-user limit on tool calls, keyed by Salesforce user ID (stable even if the username changes).
+		// Strict per-user limit on tool calls (Durable Object, keyed by Salesforce user ID).
 		// Counts every tools/call, including invalid ones, so probing spends the budget too.
+		// Fails closed: if the quota check itself fails, the call is blocked.
 		if (call) {
-			const { success } = await env.TOOL_RATE_LIMITER.limit({
-				key: `user:${props?.userId ?? identity}`,
-			});
-			if (!success) {
+			let quota: { allowed: boolean; retryAfterSeconds: number };
+			try {
+				quota = await env.USER_QUOTA.getByName(`user:${props?.userId ?? identity}`).consumeToolCall();
+			} catch (err) {
+				console.error("Quota check failed; blocking call", err);
+				try {
+					await writeAudit(env, {
+						identity,
+						tool: call.tool,
+						args: call.args,
+						decision: "error",
+						reason: "Quota check unavailable",
+						summary: null,
+						durationMs: Date.now() - started,
+					});
+				} catch (auditErr) {
+					console.error("Audit write failed for a blocked call", auditErr);
+				}
+				return rpcError(call.id, -32603, "Rate limit check unavailable; request blocked.");
+			}
+
+			if (!quota.allowed) {
 				const limited = rpcError(
 					call.id,
 					-32000,
-					"Rate limit exceeded. Try again in 60 seconds.",
+					`Rate limit exceeded. Try again in ${quota.retryAfterSeconds} seconds.`,
 					429,
 				);
-				limited.headers.set("Retry-After", RETRY_AFTER_SECONDS);
+				limited.headers.set("Retry-After", String(quota.retryAfterSeconds));
 				try {
 					await writeAudit(env, {
 						identity,
@@ -245,17 +250,11 @@ export function withRejectionAudit<E extends AuditEnv>(handle: Handler<E>): Hand
 
 		// Only the provider's own refusals: 401/403 carrying a Bearer challenge.
 		const challenge = response.headers.get("WWW-Authenticate") ?? "";
-		if (
-			(response.status !== 401 && response.status !== 403) ||
-			!challenge.startsWith("Bearer")
-		) {
+		if ((response.status !== 401 && response.status !== 403) || !challenge.startsWith("Bearer")) {
 			return response;
 		}
 
-		const text =
-			Number(copy.headers.get("content-length") ?? 0) > MAX_REJECTED_BODY
-				? ""
-				: await copy.text();
+		const text = Number(copy.headers.get("content-length") ?? 0) > MAX_REJECTED_BODY ? "" : await copy.text();
 		const target = rejectedTarget(copy, text);
 
 		try {

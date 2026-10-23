@@ -6,6 +6,7 @@ import { withAudit, withRejectionAudit } from "./audit";
 import { withIpLimit } from "./ratelimit";
 import { OAuthProvider } from "@cloudflare/workers-oauth-provider";
 import { handleAuth, GATEWAY_SCOPES, type AuthEnv, type GatewayProps } from "./auth-handler";
+export { UserQuota } from "./quota";
 
 // Allowlists. Agent input is validated against these and never spliced into SOQL as free text.
 const TERMS = ["Fall 2026", "Spring 2027", "Summer 2027", "Fall 2027"] as const;
