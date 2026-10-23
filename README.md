@@ -44,7 +44,7 @@ flowchart TD
         K --> H
     end
 
-    U[Staff user] -->|Sign in, consent| C
+    U[Staff user] -->|Sign in, consent| B
     C -.->|Identity only: openid, id scopes| S
 ```
 
@@ -184,7 +184,7 @@ $env:GATEWAY_TARGET = "prod"
 Connect-Gateway
 Invoke-Mcp list_pending_reviews @{ limit = 5 }
 ```
-
+Set $GatewayOrigin in scripts/Invoke-Mcp.ps1 to your Worker’s URL first.
 ## Known limitations
 
 - A per-call row cap does not limit total disclosure across calls (test 3).
