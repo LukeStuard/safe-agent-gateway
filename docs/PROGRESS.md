@@ -1,6 +1,16 @@
 ﻿# Progress Log
 
-## Session 1 (Oct 21, 2026)
+The build log for the Safe Agent Gateway, in chronological order. It records every step, test, failure, and fix as it happened. Lines later superseded are kept for the record and marked as such.
+
+For the finished picture, see [TEST_RESULTS.md](TEST_RESULTS.md) and [THREAT_MODEL.md](THREAT_MODEL.md).
+
+## Working notes
+
+- Global default Salesforce org on this machine is a CIAM sandbox. Always run project commands from the project folder so `gatewayDev` is used, or pass `--target-org gatewayDev`.
+- Never commit `.sfdx/` or `.sf/` (auth info). Run `git status` before every commit.
+- Confirm the Developer Edition org's expiration in Setup > Company Information.
+
+## Session 1 (2026-10-21)
 
 ### Completed
 - Phase 1: Signed up for a fresh Developer Edition (Agentforce + Data Cloud edition)
@@ -8,7 +18,7 @@
 
 ### Environment
 - Project folder: C:\Users\LukeStuard\Projects\safe-agent-gateway (git initialized)
-- Structure: one repo; Salesforce source at root, Cloudflare Worker in /worker later
+- Structure: one repo; Salesforce source at root, Cloudflare Worker in /worker
 - Org alias: gatewayDev (project-local default)
 - Instance URL: https://orgfarm-5ea30c60fa-dev-ed.develop.my.salesforce.com
 - API version: 68.0
@@ -17,77 +27,8 @@
 - Dedicated Dev Edition instead of a Trailhead Playground (clean slate, no badge clutter)
 - Build the data model as source metadata in the repo, not in the UI
 
-## Tooling: PowerShell 7 (2026-10-22)
-- Installed PowerShell 7.6.7 (winget, Store/MSIX package); VS Code default terminal is now PowerShell 7
-- Replaced the CredentialManager module with scripts/GatewayCredential.ps1 (Win32 CredRead via Add-Type),
-  because the module is Windows PowerShell only. Same Credential Manager targets, nothing re-entered
-- Get-GatewayToken.ps1 in PowerShell 7: token acquired, Application count 210: PASS
-- Use-GatewayCloudflare.ps1 in PowerShell 7: wrangler whoami shows personal account via API token: PASS
-
-## Tooling: Connect-Gateway OAuth client (2026-10-22)
-- Replaced manual token copying (clipboard collided with copying commands) with a PowerShell OAuth client
-  in Invoke-Mcp.ps1: endpoints from /.well-known/oauth-authorization-server, dynamic client registration
-  as a public client (token_endpoint_auth_method none), PKCE S256, random state, resource indicator,
-  loopback redirect http://127.0.0.1:33418/callback caught by a raw TCP listener (no admin URL ACL)
-- Callback checks: state must match, iss must equal the gateway issuer, error parameter surfaced
-- Only the client ID is saved (scripts/.gateway-client.json, gitignored). Refresh token stays in session memory
-- Invoke-Mcp refreshes the session token before expiry and once on invalid_token; explicit -Token values
-  are never refreshed, so negative tests stay honest. Set-GatewayToken kept as a masked-prompt fallback
-- Consent page with a new client: shows "registered itself; name not verified" and the loopback warning: PASS
-- Browser sign-in, callback, code exchange: connected: PASS
-- Forced stale token: refreshed automatically, call succeeded, no browser: PASS
-- Explicit garbage token: 401 invalid_token, not refreshed: PASS
-- Threat model note: the authorization code (which begins with the Salesforce user ID, a library format)
-  appears in the callback URL and browser history. Accepted: single-use, short-lived, PKCE-bound;
-  Salesforce user IDs are not secrets
-
-## Dependency review: MCP SDK advisories (2026-10-22)
-- npm audit --omit=dev flagged 4 high advisories in runtime packages (agents 0.20.1, MCP server/client 2.0.0, sdk 1.30.0)
-- agents pins its MCP peers to exact versions; upgrading @modelcontextprotocol/server alone would install two
-  SDK copies and break types. Upgraded as a set: agents 0.30.0, server/client 2.3.1, sdk 1.32.1 (--save-exact)
-- Exposure assessment before the fix:
-  - SDK bearer auth accepting tokens for another service: not affected (auth is OAuthProvider; passthrough test proves it)
-  - One request exhausting memory during validation: affected, reachable only with a gateway token. Rate limiting
-    does not mitigate a single request. Fixed by the upgrade
-  - Shared transport/server delivering one client's messages to another: likely not affected (new server and
-    transport per POST). Patched anyway
-  - Client SDK advisories (OAuth credentials sent to MCP-chosen server, cross-origin redirects): not affected,
-    the gateway never acts as an MCP client
-  - Experimental tasks not bound to session: not affected, tasks unused
-- Verified: npm ls shows one copy of each MCP package and zod 4.6.7; tsc --noEmit clean; npm audit --omit=dev: 0
-- Regression: program summary, pending reviews (10, truncated), APP-00065 notes untrusted, limit=1000 rejected,
-  unknown tool rejected, no token 401: PASS
-- Observed: reconnecting Inspector invalidated the previously copied access token (library revokes existing
-  grants for the same user and client on re-authorization), so a leaked token dies at the owner's next sign-in
-- Remaining dev-only finding: tinypool (critical) via oxfmt, the template's formatter. Not bundled into the
-  Worker; fixed separately
-- Also: Wrangler updated to 4.152.0 (separate commit)
-
-## Deployment: production on workers.dev (2026-10-22)
-- URL: https://safe-agent-gateway.lstua001.workers.dev (personal Cloudflare account, scoped API token)
-- GATEWAY_ORIGIN in wrangler.jsonc is the production URL; .dev.vars overrides it to http://localhost:8788
-  for wrangler dev (verified: local metadata still reports localhost)
-- Remote D1 migration applied; production audit log starts empty
-- Secrets uploaded with wrangler secret bulk via stdin, piped from Credential Manager (never written to disk).
-  Production has its own freshly generated COOKIE_ENCRYPTION_KEY
-- Salesforce login app: production /callback added alongside localhost
-- Invoke-Mcp.ps1: GATEWAY_TARGET=prod switches target; one client registration per host; loading the script
-  clears the session so tokens never cross environments
-- Live regression: Connect-Gateway sign-in, no token 401, garbage token 401, program summary 6 rows,
-  pending reviews 10 truncated, APP-00065 untrusted notes, limit=1000 rejected, unknown tool rejected,
-  Salesforce token passthrough 401: PASS
-- Production audit: 8 rows for 8 calls, correct identities: PASS
-- Observed: production calls take about 0.4 to 1s versus about 2s locally, consistent with the Windows
-  localhost IPv6 fallback suspected earlier
-
-### Cautions
-- Global default org is sandboxCopy (CIAM). Always run project commands from this folder so gatewayDev is used.
-- Never commit .sfdx/ or .sf/ (auth info). Run git status before the first push.
-- Confirm org expiration in Setup > Company Information.
-
-### Next
+### Next (at the time)
 - Generate Application object metadata (status, term, program, review notes) and fake sensitive fields on Contact (DOB, student ID) for redaction testing
-
 
 ## Phase 1 verification (2026-10-21)
 - Client credentials token as Gateway Integration user: PASS
@@ -100,7 +41,7 @@
 - Credentials: consumer key and secret stored in Windows Credential Manager (target SafeAgentGateway-SF),
   read by scripts/Get-GatewayToken.ps1. Bitwarden holds the master copy.
 
-  ## Phase 2: get_program_summary (2026-10-21)
+## Phase 2: get_program_summary (2026-10-21)
 - Scaffolded Worker from cloudflare/ai remote-mcp-authless template; Inspector connected over Streamable HTTP (MCP 2025-11-25)
 - Credentials: worker/.dev.vars generated from Credential Manager (gitignored, verified with git check-ignore)
 - get_program_summary: aggregates only; groupBy and term are allowlisted enums mapped to fixed field names
@@ -156,8 +97,8 @@ Controls verified: allowlisted inputs, row cap, output field allowlist, strict s
   there and deleted. Project resources now live in a personal Cloudflare account, accessed with a scoped
   API token (Credential Manager target SafeAgentGateway-CF, loaded by scripts/Use-GatewayCloudflare.ps1)
 - Lesson: re-run the tool after reconnecting before reading the audit log
-- Next: swap hand-rolled consent/state code for the library's built-in helpers; garbage/expired token test;
-  Invoke-Mcp.ps1 token support; rate limiting; add_review_note with approval
+- Next (at the time): swap hand-rolled consent/state code for the library's built-in helpers; garbage/expired
+  token test; Invoke-Mcp.ps1 token support; rate limiting; add_review_note with approval
 
 ## Phase 3: audit log (2026-10-21)
 - D1 database gateway-audit (binding AUDIT_DB); migration 0001 creates audit_log (metadata only)
@@ -182,18 +123,16 @@ Controls verified: allowlisted inputs, row cap, output field allowlist, strict s
 - Replay of a used consent handle from the same browser: 400, not started in this browser: PASS
 - Note: Back button cannot replay consent (no-cache headers force a fresh handle); replay was tested by
   resending the captured POST from DevTools on the gateway's own origin
+- Garbage bearer token on /mcp: 401 invalid_token, never reaches tool code: PASS
 - Lesson: check the installed library version's docs before writing code against it; the first
   implementation was written from 0.x memory and hand-rolled what 1.x already provides
-  - Garbage bearer token on /mcp: 401 invalid_token, never reaches tool code: PASS
-- Known gap: requests rejected by OAuthProvider (no token, bad token) never reach the audit
-  wrapper, so they are refused but not logged. Test plan #1 requires both
+- Known gap (closed 2026-10-22, see OAuth rejection logging): requests rejected by OAuthProvider (no token,
+  bad token) never reach the audit wrapper, so they are refused but not logged
 - Environment: login app creds in Credential Manager (target SafeAgentGateway-Login); .dev.vars adds
   SF_LOGIN_CLIENT_ID, SF_LOGIN_CLIENT_SECRET, SF_ORG_ID, COOKIE_ENCRYPTION_KEY; wrangler vars add
   GATEWAY_ORIGIN; KV namespace OAUTH_KV
-- Next: log OAuth rejections (test #1); Invoke-Mcp.ps1 token support; wrong-resource token test;
-  rate limiting; add_review_note with approval
 
-  ## Phase 3: OAuth rejection logging (2026-10-22)
+## Phase 3: OAuth rejection logging (2026-10-22)
 - withRejectionAudit wraps OAuthProvider.fetch, so refusals that never reach withAudit are logged
 - Logs only POST /mcp responses that are 401/403 with a Bearer challenge (the provider's own refusals),
   so a 403 from inside the MCP handler is not mislabeled as unauthenticated
@@ -206,7 +145,15 @@ Controls verified: allowlisted inputs, row cap, output field allowlist, strict s
 - Test plan #1: COMPLETE
 - Threat model notes: every unauthenticated POST costs a D1 write (rate limit must sit in front);
   normal MCP clients send an unauthenticated initialize on connect, so expect (initialize) deny rows
-- Environment: machine is on Windows PowerShell 5.1; use curl.exe for raw HTTP tests until PowerShell 7
+- Environment (superseded the same day by the PowerShell 7 entry): machine was on Windows PowerShell 5.1;
+  curl.exe used for raw HTTP tests
+
+## Tooling: PowerShell 7 (2026-10-22)
+- Installed PowerShell 7.6.7 (winget, Store/MSIX package); VS Code default terminal is now PowerShell 7
+- Replaced the CredentialManager module with scripts/GatewayCredential.ps1 (Win32 CredRead via Add-Type),
+  because the module is Windows PowerShell only. Same Credential Manager targets, nothing re-entered
+- Get-GatewayToken.ps1 in PowerShell 7: token acquired, Application count 210: PASS
+- Use-GatewayCloudflare.ps1 in PowerShell 7: wrangler whoami shows personal account via API token: PASS
 
 ## Phase 3: Invoke-Mcp.ps1 token support (2026-10-22)
 - Rewritten for PowerShell 7: bearer token from $env:GATEWAY_TOKEN, Set-GatewayToken loads it from the
@@ -221,27 +168,49 @@ Controls verified: allowlisted inputs, row cap, output field allowlist, strict s
 - Wrong-resource test replaced by token passthrough: the gateway protects a single resource, so a
   different-audience token can't be minted without adding a route just for the test
 - Lesson: Set-GatewayToken read a pasted command block from the clipboard; it now rejects anything
-  that isn't token-shaped
+  that isn't token-shaped (later replaced by a masked prompt, then by Connect-Gateway)
 
-  ## Phase 3: rate limiting (2026-10-22)
+## Dependency review: MCP SDK advisories (2026-10-22)
+- npm audit --omit=dev flagged 4 high advisories in runtime packages (agents 0.20.1, MCP server/client 2.0.0, sdk 1.30.0)
+- agents pins its MCP peers to exact versions; upgrading @modelcontextprotocol/server alone would install two
+  SDK copies and break types. Upgraded as a set: agents 0.30.0, server/client 2.3.1, sdk 1.32.1 (--save-exact)
+- Exposure assessment before the fix:
+  - SDK bearer auth accepting tokens for another service: not affected (auth is OAuthProvider; passthrough test proves it)
+  - One request exhausting memory during validation: affected, reachable only with a gateway token. Rate limiting
+    does not mitigate a single request. Fixed by the upgrade
+  - Shared transport/server delivering one client's messages to another: likely not affected (new server and
+    transport per POST). Patched anyway
+  - Client SDK advisories (OAuth credentials sent to MCP-chosen server, cross-origin redirects): not affected,
+    the gateway never acts as an MCP client
+  - Experimental tasks not bound to session: not affected, tasks unused
+- Verified: npm ls shows one copy of each MCP package and zod 4.6.7; tsc --noEmit clean; npm audit --omit=dev: 0
+- Regression: program summary, pending reviews (10, truncated), APP-00065 notes untrusted, limit=1000 rejected,
+  unknown tool rejected, no token 401: PASS
+- Observed: reconnecting Inspector invalidated the previously copied access token (library revokes existing
+  grants for the same user and client on re-authorization), so a leaked token dies at the owner's next sign-in
+- Dev-only finding: tinypool (critical) via oxfmt, the template's formatter. Not bundled into the Worker;
+  fixed by updating oxfmt to 0.74.0, then source formatted in its own commit (no logic changes)
+- Also: Wrangler updated to 4.152.0 (separate commit)
+
+## Phase 3: rate limiting (2026-10-22)
 - Workers Rate Limiting binding (ratelimits in wrangler.jsonc), two limiters with separate namespaces:
   - TOOL_RATE_LIMITER (1001): 10 tools/call per 60s per Salesforce user ID, inside withAudit. Counts invalid
     and unknown-tool calls too. Refusal: HTTP 429, Retry-After 60, JSON-RPC -32000, audited as deny
+    (superseded in Phase 4 by the UserQuota Durable Object after this binding failed in production)
   - IP_RATE_LIMITER (1002): 60 requests per 60s per IP on /mcp, /token, /register, /authorize, /callback,
     outermost wrapper (withIpLimit in ratelimit.ts). Refusal: 429, Retry-After 60, deliberately not audited
 - Order: IP limit > token check + rejection audit > per-user limit + audit > tools
 - audit.ts: insert factored into writeAudit (three call sites)
-- Test #7, per-user: 25 sequential calls; 10 allowed in the 11:16 window, then 429 for the rest: PASS
+- Test #7, per-user (local): 25 sequential calls; 10 allowed in the 11:16 window, then 429 for the rest: PASS
+  (local only; failed in production, see Phase 4)
 - Finding: limits use fixed windows aligned to the clock minute (first run allowed 11 around the 11:16:00
-  boundary). A burst straddling a boundary can reach 2x the limit. Acceptable for an abuse control;
-  a strict limit would need a Durable Object (Cloudflare docs)
+  boundary). A burst straddling a boundary can reach 2x the limit
 - IP limit: 70 parallel unauthenticated requests in one window: 60 x 401, 10 x 429: PASS
 - Audit: exactly 60 rows for that burst; IP-limited requests never reached D1: PASS
 - Caught by test: the first IP run returned 70 x 401 because withIpLimit was never wired into index.ts
   (tsc passes either way). Lesson: verify wiring with a behavior test, not just a typecheck
 - Note: each local request takes about 2s, including 429s that never touch Salesforce; suspect localhost
   IPv6 fallback on Windows. Sequential tests can't reach the IP limit, so the IP test runs in parallel
-- Test plan: 5 of 9 passed (#1, #2, #3, #5, #7)
 
 ## Phase 3: add_review_note approval gate, Salesforce side (2026-10-22)
 - Design: approval lives in Salesforce. The gateway will only create Review_Note_Request__c records;
@@ -250,7 +219,8 @@ Controls verified: allowlisted inputs, row cap, output field allowlist, strict s
   Requested_By__c (User, from the gateway's OAuth identity), Status__c (Pending/Approved/Rejected,
   history tracked), Decided_By__c, Decided_On__c. Org-wide Read/Write; object permissions decide who edits
 - Validation rules: No_Self_Decision (requester can't approve or reject, admins included),
-  Decision_Is_Final, New_Request_Must_Be_Pending
+  Decision_Is_Final, New_Request_Must_Be_Pending, Request_Is_Immutable (application and requester
+  can't change after creation)
 - Flows: Stamp Decision (before-save: Decided_By, Decided_On); Apply Approved Note (after-save,
   Status changed to Approved: appends "[date | RNR | requested by | approved by] note" to Review_Notes__c)
 - Permission sets: Gateway_Integration create + read on requests, no edit, Status read-only, still no edit
@@ -269,10 +239,8 @@ Controls verified: allowlisted inputs, row cap, output field allowlist, strict s
 - Lessons: metadata-deployed fields get no field access, even for admins (Flow Builder couldn't see
   Status until Gateway_Admin granted it). A read-only setting on a page layout is not a control: the
   System Administrator "Edit Read Only Fields" permission overrides it
-- Known gaps (threat model): an admin can edit Proposed_Note__c before approval (accepted). Application__c
-  is required, so field-level security can't lock it, and a reviewer could repoint a pending request to
-  another application before approving; a validation rule would close this
-- Next: add_review_note tool in the gateway (requires salesforce.ts create support)
+- Accepted risk: an admin can edit Proposed_Note__c before approval
+- Repointing a pending request to another application: closed by Request_Is_Immutable (verified in Phase 5)
 
 ## Phase 3: add_review_note tool, gateway side (2026-10-22)
 - add_review_note creates a Review_Note_Request__c only; it never writes to the application. The response
@@ -291,17 +259,52 @@ Controls verified: allowlisted inputs, row cap, output field allowlist, strict s
 - 6. 1,001-character note: rejected at schema: PASS
 - 7. Audit rows show [redacted: N chars], no note text stored: PASS
 - 8. Reviewer approves RNR-00002; note appears on APP-00065 via get_application_status: PASS
-- Test plan #6 (write without approval): COMPLETE. Test plan: 6 of 9 passed (#1, #2, #3, #5, #6, #7)
+- Test plan #6 (write without approval): COMPLETE
 - Invoke-Mcp.ps1: Set-GatewayToken now prompts (masked) instead of reading the clipboard, which collided
   with copying commands; -ErrorAction Stop on transport errors
 - Known gap: one scope (gateway:read) covers the write tool; a gateway:write scope would hide it from
   read-only agents. The approval gate holds regardless
 - Phase 3: COMPLETE
-- Next: Connect-Gateway (PowerShell OAuth client: DCR, PKCE, loopback, refresh), then Phase 4
-- Claude (claude.ai web) connected as a custom connector to the production URL: DCR, consent showing
-  claude.ai as the redirect host, Salesforce login. Claude sees exactly 4 tools, each set to Needs approval
 
-  ## Phase 4: strict per-user rate limit (2026-10-22)
+## Tooling: Connect-Gateway OAuth client (2026-10-22)
+- Replaced manual token copying (clipboard collided with copying commands) with a PowerShell OAuth client
+  in Invoke-Mcp.ps1: endpoints from /.well-known/oauth-authorization-server, dynamic client registration
+  as a public client (token_endpoint_auth_method none), PKCE S256, random state, resource indicator,
+  loopback redirect http://127.0.0.1:33418/callback caught by a raw TCP listener (no admin URL ACL)
+- Callback checks: state must match, iss must equal the gateway issuer, error parameter surfaced
+- Only the client ID is saved (scripts/.gateway-client.<host>.json, gitignored). Refresh token stays in session memory
+- Invoke-Mcp refreshes the session token before expiry and once on invalid_token; explicit -Token values
+  are never refreshed, so negative tests stay honest. Set-GatewayToken kept as a masked-prompt fallback
+- Consent page with a new client: shows "registered itself; name not verified" and the loopback warning: PASS
+- Browser sign-in, callback, code exchange: connected: PASS
+- Forced stale token: refreshed automatically, call succeeded, no browser: PASS
+- Explicit garbage token: 401 invalid_token, not refreshed: PASS
+- Threat model note: the authorization code (which begins with the Salesforce user ID, a library format)
+  appears in the callback URL and browser history. Accepted: single-use, short-lived, PKCE-bound;
+  Salesforce user IDs are not secrets
+
+## Deployment: production on workers.dev (2026-10-22)
+- URL: https://safe-agent-gateway.lstua001.workers.dev (personal Cloudflare account, scoped API token)
+- GATEWAY_ORIGIN in wrangler.jsonc is the production URL; .dev.vars overrides it to http://localhost:8788
+  for wrangler dev (verified: local metadata still reports localhost)
+- Remote D1 migration applied; production audit log starts empty
+- Secrets uploaded with wrangler secret bulk via stdin, piped from Credential Manager (never written to disk).
+  Production has its own freshly generated COOKIE_ENCRYPTION_KEY
+- Salesforce login app: production /callback added alongside localhost
+- Invoke-Mcp.ps1: GATEWAY_TARGET=prod switches target; one client registration per host; loading the script
+  clears the session so tokens never cross environments
+- Live regression: Connect-Gateway sign-in, no token 401, garbage token 401, program summary 6 rows,
+  pending reviews 10 truncated, APP-00065 untrusted notes, limit=1000 rejected, unknown tool rejected,
+  Salesforce token passthrough 401: PASS
+- Production audit: 8 rows for 8 calls, correct identities: PASS
+- Observed: production calls take about 0.4 to 1s versus about 2s locally, consistent with the Windows
+  localhost IPv6 fallback suspected earlier
+- Claude (claude.ai web) connected as a custom connector to the production URL: DCR, consent showing
+  claude.ai as the redirect host, Salesforce login. Claude sees exactly 4 tools, each set to Needs approval.
+  (The Claude Desktop installer was blocked by a Windows app-package policy, AllowAllTrustedApps = 0;
+  the web app connects the same way, since remote connectors run from Anthropic's cloud)
+
+## Phase 4: strict per-user rate limit (2026-10-22)
 - Production finding: the Workers Rate Limiting binding let 15 of 15 sequential agent calls (10 seconds)
   and 30 of 30 parallel script calls through. Locally it enforced exactly; in production, counts are
   cached per instance and synced in the background, so bursts spread across instances pass. Cloudflare
@@ -333,8 +336,24 @@ Controls verified: allowlisted inputs, row cap, output field allowlist, strict s
   restored, 210 total: PASS
 - 9 Audit review: identities, decisions, rate-limit reasons, error rows, and redacted note arguments present;
   no record data stored: PASS
-- Agent usability finding: rate-limit refusals use HTTP 429, and Claude didn't seem to see the retry time
-  in the message (it asked for the window length)
+- Agent usability finding: rate-limit refusals used HTTP 429, and Claude didn't see the retry time
+  (it asked for the window length). Fixed in Phase 5
 - Phase 4: COMPLETE
-- Phase 5 candidates: per-user row budget, suspectedInstructions flag, agent-readable rate-limit refusals,
-  gateway:write scope, request immutability rule
+
+## Phase 5: findings fixed (2026-10-22)
+- Rate-limit refusals now return as MCP tool results (isError true, HTTP 200, Retry-After header kept) so
+  clients pass them to the model. Protocol errors stay JSON-RPC errors; the per-IP flood limit keeps HTTP 429
+- 15 parallel calls in production: 10 allowed, 5 refused with "Rate limit exceeded (10 tool calls per
+  rolling 60 seconds per user). No data was returned. Try again in N seconds.": PASS
+- Request_Is_Immutable verified: an administrator changing RNR-00004's application from APP-00093 to
+  APP-00001 was blocked: PASS
+- Observed: the reviewer cannot open applications at all (Application sharing is Private and nothing shares
+  it with reviewers), so the reviewer can approve notes without seeing the record. Added to the roadmap
+- Evidence file names corrected
+
+## Phase 5: documentation (2026-10-22)
+- docs/TEST_RESULTS.md: results for all 9 tests with evidence links, findings, roadmap, accepted risks
+- docs/THREAT_MODEL.md: design principles, trust boundaries, assets, threat actors, OWASP Top 10 for LLM
+  Applications (2026) mapping, threats beyond the LLM list, containment, OWASP Agentic Top 10 cross-reference
+- README.md: overview, Mermaid architecture diagram, controls, results, what testing changed, setup
+- Remaining: demo GIF, LinkedIn post, resume bullet
