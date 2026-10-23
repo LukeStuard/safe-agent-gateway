@@ -59,18 +59,44 @@ async function writeAudit(env: AuditEnv, row: AuditRow): Promise<void> {
 }
 
 function rpcError(id: unknown, code: number, message: string, status = 200) {
-	return new Response(JSON.stringify({ jsonrpc: "2.0", id: id ?? null, error: { code, message } }), {
-		status,
-		headers: { "Content-Type": "application/json" },
-	});
+	return new Response(
+		JSON.stringify({
+			jsonrpc: "2.0",
+			id: id ?? null,
+			error: { code, message },
+		}),
+		{
+			status,
+			headers: { "Content-Type": "application/json" },
+		},
+	);
 }
 
-function parseToolCall(text: string): { id: unknown; tool: string; args: unknown } | "batch" | null {
+// Tool-level refusal as an MCP result, so clients pass the text to the model.
+// Protocol errors (bad request, unknown method) stay JSON-RPC errors via rpcError.
+function toolErrorResult(id: unknown, text: string, headers: Record<string, string> = {}) {
+	return new Response(
+		JSON.stringify({
+			jsonrpc: "2.0",
+			id: id ?? null,
+			result: { isError: true, content: [{ type: "text", text }] },
+		}),
+		{ status: 200, headers: { "Content-Type": "application/json", ...headers } },
+	);
+}
+
+function parseToolCall(
+	text: string,
+): { id: unknown; tool: string; args: unknown } | "batch" | null {
 	try {
 		const msg = JSON.parse(text);
 		if (Array.isArray(msg)) return "batch";
 		if (msg?.method !== "tools/call") return null;
-		return { id: msg.id ?? null, tool: String(msg.params?.name ?? ""), args: msg.params?.arguments ?? {} };
+		return {
+			id: msg.id ?? null,
+			tool: String(msg.params?.name ?? ""),
+			args: msg.params?.arguments ?? {},
+		};
 	} catch {
 		return null;
 	}
@@ -107,10 +133,18 @@ function summarize(text: string): string {
 	return `bytes=${text.length}`;
 }
 
-function classify(msg: any): { decision: Decision; reason: string | null; summary: string | null } {
+function classify(msg: any): {
+	decision: Decision;
+	reason: string | null;
+	summary: string | null;
+} {
 	if (!msg) return { decision: "error", reason: "Unparseable response", summary: null };
 	if (msg.error) {
-		return { decision: "deny", reason: `JSON-RPC ${msg.error.code}: ${String(msg.error.message).slice(0, 300)}`, summary: null };
+		return {
+			decision: "deny",
+			reason: `JSON-RPC ${msg.error.code}: ${String(msg.error.message).slice(0, 300)}`,
+			summary: null,
+		};
 	}
 	const result = msg.result ?? {};
 	const text: string = result.content?.[0]?.text ?? "";
@@ -133,7 +167,8 @@ export function withAudit<E extends AuditEnv>(handle: Handler<E>): Handler<E> {
 		const call = parseToolCall(await request.clone().text());
 
 		// Batches could hide tool calls from the audit layer, so refuse them outright.
-		if (call === "batch") return rpcError(null, -32600, "Batch requests are not supported.", 400);
+		if (call === "batch")
+			return rpcError(null, -32600, "Batch requests are not supported.", 400);
 
 		// Strict per-user limit on tool calls (Durable Object, keyed by Salesforce user ID).
 		// Counts every tools/call, including invalid ones, so probing spends the budget too.
@@ -141,7 +176,9 @@ export function withAudit<E extends AuditEnv>(handle: Handler<E>): Handler<E> {
 		if (call) {
 			let quota: { allowed: boolean; retryAfterSeconds: number };
 			try {
-				quota = await env.USER_QUOTA.getByName(`user:${props?.userId ?? identity}`).consumeToolCall();
+				quota = await env.USER_QUOTA.getByName(
+					`user:${props?.userId ?? identity}`,
+				).consumeToolCall();
 			} catch (err) {
 				console.error("Quota check failed; blocking call", err);
 				try {
@@ -161,13 +198,11 @@ export function withAudit<E extends AuditEnv>(handle: Handler<E>): Handler<E> {
 			}
 
 			if (!quota.allowed) {
-				const limited = rpcError(
+				const limited = toolErrorResult(
 					call.id,
-					-32000,
-					`Rate limit exceeded. Try again in ${quota.retryAfterSeconds} seconds.`,
-					429,
+					`Rate limit exceeded (${TOOL_LIMIT_DESCRIPTION}). No data was returned. Try again in ${quota.retryAfterSeconds} seconds.`,
+					{ "Retry-After": String(quota.retryAfterSeconds) },
 				);
-				limited.headers.set("Retry-After", String(quota.retryAfterSeconds));
 				try {
 					await writeAudit(env, {
 						identity,
@@ -207,7 +242,10 @@ export function withAudit<E extends AuditEnv>(handle: Handler<E>): Handler<E> {
 			return rpcError(call.id, -32603, "Audit log unavailable; request blocked.");
 		}
 
-		return new Response(responseText, { status: response.status, headers: response.headers });
+		return new Response(responseText, {
+			status: response.status,
+			headers: response.headers,
+		});
 	};
 }
 
@@ -224,7 +262,10 @@ function rejectedTarget(request: Request, text: string): { tool: string; args: u
 		const msg = JSON.parse(text);
 		if (Array.isArray(msg)) return { tool: "(batch)", args: null };
 		if (msg?.method === "tools/call") {
-			return { tool: String(msg.params?.name ?? ""), args: msg.params?.arguments ?? {} };
+			return {
+				tool: String(msg.params?.name ?? ""),
+				args: msg.params?.arguments ?? {},
+			};
 		}
 		return { tool: `(${String(msg?.method ?? "unknown")})`, args: null };
 	} catch {
@@ -250,11 +291,17 @@ export function withRejectionAudit<E extends AuditEnv>(handle: Handler<E>): Hand
 
 		// Only the provider's own refusals: 401/403 carrying a Bearer challenge.
 		const challenge = response.headers.get("WWW-Authenticate") ?? "";
-		if ((response.status !== 401 && response.status !== 403) || !challenge.startsWith("Bearer")) {
+		if (
+			(response.status !== 401 && response.status !== 403) ||
+			!challenge.startsWith("Bearer")
+		) {
 			return response;
 		}
 
-		const text = Number(copy.headers.get("content-length") ?? 0) > MAX_REJECTED_BODY ? "" : await copy.text();
+		const text =
+			Number(copy.headers.get("content-length") ?? 0) > MAX_REJECTED_BODY
+				? ""
+				: await copy.text();
 		const target = rejectedTarget(copy, text);
 
 		try {

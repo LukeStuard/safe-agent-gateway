@@ -24,12 +24,17 @@ export class UserQuota extends DurableObject<Env> {
 		const sql = this.ctx.storage.sql;
 		sql.exec("DELETE FROM calls WHERE ts <= ?", now - TOOL_CALL_WINDOW_MS);
 		const row = sql
-			.exec<{ n: number; oldest: number | null }>("SELECT COUNT(*) AS n, MIN(ts) AS oldest FROM calls")
+			.exec<{ n: number; oldest: number | null }>(
+				"SELECT COUNT(*) AS n, MIN(ts) AS oldest FROM calls",
+			)
 			.one();
 
 		if (row.n >= TOOL_CALL_LIMIT) {
 			const retryAfterMs = (row.oldest ?? now) + TOOL_CALL_WINDOW_MS - now;
-			return { allowed: false, retryAfterSeconds: Math.max(1, Math.ceil(retryAfterMs / 1000)) };
+			return {
+				allowed: false,
+				retryAfterSeconds: Math.max(1, Math.ceil(retryAfterMs / 1000)),
+			};
 		}
 		sql.exec("INSERT INTO calls (ts) VALUES (?)", now);
 		return { allowed: true, retryAfterSeconds: 0 };
